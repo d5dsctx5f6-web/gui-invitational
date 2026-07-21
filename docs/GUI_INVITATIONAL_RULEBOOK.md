@@ -2,7 +2,7 @@
 
 **Companion to:** GUI Invitational Product Spec v1.1 (the spec governs the app build; this governs the trip)
 **Event:** Year 1 · March 26–28, 2027
-**Version:** 1.5
+**Version:** 1.6
 
 ---
 
@@ -55,7 +55,7 @@ After the room clears, Chris enters the four teams, captains, and Saturday's mat
 - **Individual race:** cumulative individual net across both competitive rounds, running automatically. Every shot counts twice.
 - **Handicaps:** net play. GHIN index where available, assigned trip index otherwise — **collected by Chris the week of the trip** and entered in admin. The app converts every index to a **course handicap for that day's course and tees** (rating, slope, par, and stroke index loaded per round) and shows each player his strokes and exactly which holes they fall on. Nobody does math — your dots are just on the card. Commissioner may adjust any trip index between rounds.
 - **Do-overs:** each player gets **one breakfast ball** (first tee shot of the round only) and **one mulligan** (any shot except on the putting green) per competitive round. The second ball must be played. Use them or lose them — nothing carries to the next round. The resulting score counts for everything: match, individual race, skins. Scorekeeper marks usage in the app.
-- **Reverse mulligan — the team weapon:** once per round, each **team** may force an opposing player to replay a shot in one of its duo matches. Must be called immediately, before the next shot is played — otherwise it's waived. One per team, not per duo: either duo can burn it, and the app shows both foursomes live whether it's still in the holster. The replayed shot counts for the duo match — but **a made shot stays made**: if the reversed shot was holed, the player's original score still stands for skins and the individual race. Sabotage only touches the team match. Scorekeeper records both scores on that hole.
+- **Reverse mulligan — the team weapon:** once per round, each **team** may force an opposing player to **replay any one shot** — tee shot, approach, chip, or putt — in one of its duo matches. Must be called immediately, before the next shot is played — otherwise it's waived. The player re-hits that single shot and plays on from the result; **he does not play two balls**. One per team, not per duo: either duo can burn it, and the app shows both foursomes live whether it's still in the holster. The replay counts for the duo match. **The one exception — a made shot stays made:** if the reversed shot was already holed (e.g. a drained putt), it still counts at its real value for skins and the individual race, even though the team match must honor the replay. So a reverse mulligan on a holed putt sabotages the *team* result while leaving the player's own money game and personal score intact. Every other reverse mulligan produces a single score that counts everywhere. Scorekeeper records the replay result — and, only when a holed shot was reversed, both scores on that hole.
 
 ---
 
