@@ -11,6 +11,15 @@ export function matchScore(score: HoleScore): number {
   return score.matchStrokes ?? score.strokes;
 }
 
+/**
+ * The score source for skins and the individual race: always the real, holed score,
+ * even when a reverse mulligan diverged the match-only score. Named (not just `.strokes`)
+ * so call sites document which side of the two-score rule they're on.
+ */
+export function realScore(score: HoleScore): number {
+  return score.strokes;
+}
+
 export function netScore(gross: number, strokesReceived: number): number {
   return gross - strokesReceived;
 }
