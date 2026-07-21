@@ -91,6 +91,21 @@ function computeSegment(
   return { status: finished ? "closed" : "in_progress", holesUp, thru, winner, points };
 }
 
+/**
+ * Outright holes won per duo (halves excluded) — feeds the standings "total individual
+ * holes won" tiebreaker (Addendum A). Reuses the same per-hole resolution as match state.
+ */
+export function countHolesWon(holes: DuoHoleNets[]): { a: number; b: number } {
+  let a = 0;
+  let b = 0;
+  for (const h of holes) {
+    const result = resolveHole(h.duoANet, h.duoBNet);
+    if (result === "A") a++;
+    else if (result === "B") b++;
+  }
+  return { a, b };
+}
+
 const FRONT_9 = Array.from({ length: 9 }, (_, i) => i + 1);
 const BACK_9 = Array.from({ length: 9 }, (_, i) => i + 10);
 const ALL_18 = Array.from({ length: 18 }, (_, i) => i + 1);

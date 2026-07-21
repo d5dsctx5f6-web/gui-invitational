@@ -12,3 +12,7 @@ export * from "./matchState";
 export * from "./skins";
 export * from "./reverseMulligan";
 export * from "./individualRace";
+export * from "./config";
+export * from "./standings";
+export * from "./pairings";
+export * from "./shortenedEvent";

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeMatchState, type DuoHoleNets, type HoleWinner } from "./matchState";
+import {
+  computeMatchState,
+  countHolesWon,
+  type DuoHoleNets,
+  type HoleWinner,
+} from "./matchState";
 
 /** Single-ball-per-duo shorthand: encodes a hole result as two net scores, 3 beats 4. */
 function hole(holeNumber: number, result: HoleWinner): DuoHoleNets {
@@ -121,5 +126,20 @@ describe("computeMatchState", () => {
     expect(state.overall18.status).toBe("closed");
     expect(state.overall18.winner).toBe("B");
     expect(state.totalPoints).toEqual({ a: 0, b: 3 });
+  });
+});
+
+describe("countHolesWon", () => {
+  it("counts outright wins per duo, excluding halves", () => {
+    const results: HoleWinner[] = ["A", "A", "B", "halved", "A"];
+    expect(countHolesWon(holes(results))).toEqual({ a: 3, b: 1 });
+  });
+
+  it("returns zero for both when every hole is halved or unresolved", () => {
+    expect(countHolesWon(holes(["halved", "halved"]))).toEqual({ a: 0, b: 0 });
+    expect(countHolesWon([{ hole: 1, duoANet: [], duoBNet: [] }])).toEqual({
+      a: 0,
+      b: 0,
+    });
   });
 });
