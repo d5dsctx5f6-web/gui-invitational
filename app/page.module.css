@@ -45,6 +45,16 @@
   padding: 14px 18px;
 }
 
+.scoreLink {
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  padding: 10px 16px;
+}
+
 .footer {
   margin-top: auto;
   padding-top: 24px;

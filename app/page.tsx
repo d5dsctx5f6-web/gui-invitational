@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import styles from "./page.module.css";
 
@@ -21,6 +22,10 @@ export default async function Home() {
           </li>
         ))}
       </ul>
+
+      <Link href="/score" className={styles.scoreLink}>
+        Score a round →
+      </Link>
 
       <footer className={styles.footer}>
         {error ? `connection failed: ${error.message}` : "connection live"}

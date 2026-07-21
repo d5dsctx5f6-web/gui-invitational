@@ -1,0 +1,260 @@
+.page {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  padding: 16px 12px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backLink {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--tile2);
+}
+
+.eyebrow b {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.segs {
+  display: flex;
+  gap: 6px;
+}
+
+.seg {
+  flex: 1;
+  text-align: center;
+  background: var(--board2);
+  border: 1px solid var(--seam2);
+  border-radius: 2px;
+  padding: 6px 2px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tile2);
+}
+
+.seg b {
+  display: block;
+  font-size: 12px;
+  color: var(--cream);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.segClosed b {
+  color: var(--gold);
+}
+
+.holehead {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  background: var(--board2);
+  border: 2px solid var(--seam);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.bignum {
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 0.9;
+  color: var(--white);
+}
+
+.holemeta {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tile2);
+  line-height: 1.8;
+}
+
+.holemeta b {
+  color: var(--cream);
+}
+
+.navrow {
+  display: flex;
+  gap: 8px;
+}
+
+.navbtn {
+  flex: 1;
+  border: 2px solid var(--seam);
+  background: var(--board2);
+  color: var(--gold);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.navbtn:disabled {
+  opacity: 0.4;
+}
+
+.card {
+  background: var(--board2);
+  border: 2px solid var(--seam);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.cardhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.cardhead h2 {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.cardhead .meta {
+  font-size: 10px;
+  color: var(--tile2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.prow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--seam2);
+}
+
+.prow:last-child {
+  border-bottom: none;
+}
+
+.pname {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dots {
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+.ptags {
+  margin-top: 4px;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid var(--seam);
+  color: var(--tile2);
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: none;
+  font-family: inherit;
+}
+
+.chipUsed {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.chipAvail {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.chipPending {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--spruce);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepbtn {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 2px;
+  background: var(--cream);
+  color: var(--spruce);
+  font-size: 22px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.scoreval {
+  width: 34px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.postbtn {
+  border: none;
+  border-radius: 2px;
+  font-family: inherit;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  width: 100%;
+  background: var(--red);
+  color: var(--white);
+  font-size: 14px;
+  padding: 16px;
+}
+
+.postbtn:disabled {
+  opacity: 0.5;
+}
+
+.error {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--red);
+  text-align: center;
+}
+
+.hint {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tile2);
+  text-align: center;
+}
