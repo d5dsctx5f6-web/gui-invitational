@@ -13,6 +13,16 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // /engine is a pure TS module — no framework imports, ever.
+  {
+    files: ["engine/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: ["react", "react/*", "next", "next/*", "@next/*"] },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
