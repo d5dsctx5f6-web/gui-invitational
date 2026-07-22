@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 21, 2026 · **Status:** build paused here — read this first before resuming.
+**Last updated:** July 22, 2026 · **Status:** build paused here — read this first before resuming.
 
 ---
 
@@ -10,11 +10,12 @@
 - **Brief 2** — full DB schema + engine core (handicap conversion, net scoring, F9/B9/18 match state).
 - **M1** — playable scorecard, verified on a real phone across a full 18.
 - **Brief 4** — skins, reverse-mulligan two-score rule, individual race (34 tests).
-- **Brief 5** — standings, earned Sunday pairings, chip-off tie surfacing, shortened event, allowance config, and the full simulated-trip suite (77 tests total, all green). Latest commit `325640d`.
+- **Brief 5** — standings, earned Sunday pairings, chip-off tie surfacing, shortened event, allowance config, and the full simulated-trip suite (77 tests total, all green).
+- **Scorecard fixes** — success/error write feedback, "already posted" indicator, running gross/net totals per player. Latest commit `cc87648`.
 
-## M2 status
+## M2 status: CLOSED
 
-Engine engineering-complete, all 77 tests green. The M2 gate is the human hand-audit via `npm run audit` — **this hand-check is still pending Chris's sign-off.** The audit script was run and its output walked through in session, but Chris has not yet confirmed the printed standings/skins/individual numbers match his own math. **M2 is not officially closed until that hand-check passes.**
+Chris's hand-audit passed both traces (net computation on a real-entered round: 85 gross − 20 dots = 65 net, matched and recomputed correctly on edit; skins void integrity confirmed via raw fixture data on two Sunday holes — genuine multi-way ties, no gaps or malformed data). The entire scoring engine — match state, handicaps, skins, the reverse-mulligan two-score rule, standings, earned pairings, shortened event, individual race — is complete and proven: 77 automated tests plus this human audit. See `SESSION_ADDENDUM_M2_CLOSED.md`.
 
 ## Two must-do-before-M3 items (do not lose)
 
@@ -27,4 +28,4 @@ Reconcile ARCHITECTURE §5 with the schema actually built (`course_tees` split, 
 
 ## Next up
 
-Finish the M2 hand-audit if not done, then **Brief 6 — M3** (live multiplayer + admin panel + blind duo submissions + skins opt-in + Challenge Ledger + schedule + champions wall).
+**Brief 6 — M3** (live multiplayer + admin panel + blind duo submissions + skins opt-in + Challenge Ledger + schedule + champions wall), including the two carried-forward items above.
