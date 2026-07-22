@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { courseHandicap, playingHandicap, strokesForHoles } from "@/engine/src";
-import { getSupabase } from "@/lib/supabase";
+import { getCurrentPlayer } from "@/lib/auth/player";
+import { createClient } from "@/lib/supabase/server";
 import { Scorecard } from "./Scorecard";
 import type {
   ExistingHoleScore,
@@ -20,7 +22,7 @@ interface DuoSubmissionRow {
 }
 
 async function loadScorecardData(): Promise<ScorecardData | null> {
-  const supabase = getSupabase();
+  const supabase = await createClient();
 
   const { data: match } = await supabase
     .from("matches")
@@ -143,6 +145,21 @@ async function loadScorecardData(): Promise<ScorecardData | null> {
 }
 
 export default async function ScorePage() {
+  const player = await getCurrentPlayer();
+
+  if (!player) {
+    return (
+      <main style={{ padding: 24, color: "var(--cream)" }}>
+        <p>Sign in with your name and PIN before scoring a round.</p>
+        <p style={{ marginTop: 12 }}>
+          <Link href="/" style={{ color: "var(--gold)" }}>
+            ← Back to sign in
+          </Link>
+        </p>
+      </main>
+    );
+  }
+
   const data = await loadScorecardData();
 
   if (!data) {

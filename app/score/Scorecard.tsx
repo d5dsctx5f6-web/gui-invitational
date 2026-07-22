@@ -12,7 +12,7 @@ import {
   type PlayerHoleNet,
   type SegmentState,
 } from "@/engine/src";
-import { getSupabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import styles from "./Scorecard.module.css";
 import type { ExistingHoleScore, ScorecardData, ScorecardPlayer } from "./types";
 
@@ -194,7 +194,7 @@ export function Scorecard({ data }: { data: ScorecardData }) {
       mulligan: entries[p.id].mulligan,
     }));
 
-    const supabase = getSupabase();
+    const supabase = createClient();
     const { error: upsertError } = await supabase
       .from("hole_scores")
       .upsert(rows, { onConflict: "player_id,round_id,hole" });
