@@ -1,9 +1,9 @@
 # Supabase schema
 
-Migrations are numbered and applied in order via the Supabase SQL editor (no CLI/service-role
-access wired up yet — see Brief 1/2 session addendums). Every table has RLS enabled with a
-permissive anon-SELECT policy; writes go through the dashboard/service role until the auth model
-lands in a later brief.
+Migrations are numbered and applied in order via the Supabase SQL editor (no migration CLI
+wired up — see Brief 1/2 session addendums). Every table has RLS enabled with a permissive
+anon-SELECT policy. As of Brief 6, the service role key is used server-side by the admin
+panel (never exposed to the client) for corrections and setup writes.
 
 ## Table → PRODUCT_SPEC mapping
 
@@ -21,6 +21,14 @@ lands in a later brief.
 | `skins_entries` | `0008` (stub) | Money — gross skins, opt-in — logic deferred to Brief 3 |
 | `challenge_bets` | `0008` (stub) | Money — Challenge Ledger — logic deferred to Brief 3 |
 | `schedule_items` | `0008` (stub) | Beyond scoring — schedule/itinerary, including the Friday fun round |
+| `player_auth` / `player_devices` | `0013` | Player access (the PIN model) — no accounts, no email; rides on Supabase Auth anonymous sign-in so RLS can be genuinely identity-aware. `pin_hash` is never selectable directly, only via the `set_player_pin`/`verify_and_link_pin` SECURITY DEFINER functions |
+
+## Writes since Brief 6
+
+`hole_scores` inserts/updates require an authenticated (signed-in) session — see `0014`. Every
+other table's writes go through the admin panel's service-role server actions (Brief 6 Part D),
+which bypass RLS entirely after a passcode check in application code, not through client-side
+RLS policies. `SELECT` stays anon-open on every table, as it's been since M0.
 
 ## Count-agnostic schema notes
 
