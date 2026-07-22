@@ -318,3 +318,31 @@
   color: var(--tile2);
   text-align: center;
 }
+
+.rmbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: var(--board2);
+  border: 2px solid var(--seam);
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+
+.rmtxt {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--tile2);
+}
+
+.rmtxt b {
+  color: var(--gold);
+}
+
+.rmNote {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  margin-top: 3px;
+}

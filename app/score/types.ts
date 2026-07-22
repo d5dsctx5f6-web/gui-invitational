@@ -27,6 +27,17 @@ export interface ScorecardDuo {
   players: ScorecardPlayer[];
 }
 
+export interface ScorecardReverseMulligan {
+  id: string;
+  teamId: string;
+  hole: number;
+  victimPlayerId: string;
+  /** Set only when the reversed shot was already holed — the real score to preserve for
+   * skins/individual while match_strokes carries the replay. Null means a simple non-holed
+   * reversal: strokes gets overwritten directly, no divergence. */
+  originalHoledScore: number | null;
+}
+
 export interface ScorecardData {
   matchId: string;
   roundId: string;
@@ -34,4 +45,5 @@ export interface ScorecardData {
   duoB: ScorecardDuo;
   holes: ScorecardHoleMeta[];
   existingScores: ExistingHoleScore[];
+  reverseMulligans: ScorecardReverseMulligan[];
 }

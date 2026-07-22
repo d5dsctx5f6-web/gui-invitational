@@ -25,6 +25,15 @@ export default async function Home() {
         Score a round →
       </Link>
 
+      <div className={styles.navLinks}>
+        <Link href="/duos" className={styles.navLink}>
+          Duo submissions
+        </Link>
+        <Link href="/money" className={styles.navLink}>
+          Money
+        </Link>
+      </div>
+
       <footer className={styles.footer}>
         {error ? `connection failed: ${error.message}` : "connection live"}
       </footer>

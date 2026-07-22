@@ -1,0 +1,219 @@
+.page {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 24px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--tile2);
+}
+
+.eyebrow b {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.roundPicker {
+  display: flex;
+  gap: 6px;
+}
+
+.roundLink {
+  flex: 1;
+  text-align: center;
+  border: 1px solid var(--seam);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--tile2);
+}
+
+.roundLinkActive {
+  border-color: var(--gold);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.card {
+  background: var(--board2);
+  border: 2px solid var(--seam);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cardhead h2 {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.meta {
+  font-size: 10px;
+  color: var(--tile2);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hint {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--tile2);
+}
+
+.toggleBtn {
+  border: 2px solid var(--gold);
+  background: none;
+  color: var(--gold);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.toggleBtn:disabled {
+  opacity: 0.5;
+}
+
+.skinRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--seam2);
+  font-size: 13px;
+  color: var(--cream);
+}
+
+.skinRow:last-child {
+  border-bottom: none;
+}
+
+.money {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.moneyUp {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.moneyDown {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.betRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--seam2);
+  font-size: 12px;
+  color: var(--cream);
+}
+
+.betRow:last-child {
+  border-bottom: none;
+}
+
+.betActions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.smallBtn {
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: none;
+  border-radius: 3px;
+  padding: 6px 9px;
+  cursor: pointer;
+  background: var(--gold);
+  color: var(--spruce);
+  white-space: nowrap;
+}
+
+.badge {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tile2);
+  border: 1px solid var(--seam);
+  border-radius: 3px;
+  padding: 3px 6px;
+}
+
+.betForm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.select,
+.input {
+  font-family: inherit;
+  font-size: 12px;
+  background: var(--spruce);
+  color: var(--cream);
+  border: 1px solid var(--seam);
+  border-radius: 3px;
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.errorText {
+  font-size: 11px;
+  color: var(--red);
+}
+
+.betFormActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.logBtn {
+  width: 100%;
+  border: none;
+  border-radius: 4px;
+  font-family: inherit;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: var(--gold);
+  color: var(--spruce);
+  font-size: 12px;
+  padding: 12px;
+}

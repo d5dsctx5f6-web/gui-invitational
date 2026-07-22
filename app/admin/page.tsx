@@ -7,11 +7,14 @@ import {
   createRound,
   createTeam,
   deleteMatch,
+  reassignChallengeBetWinner,
   removeTeamMember,
+  setSkinsBuyIn,
   updatePlayerIndex,
   updateTeam,
   upsertCourseTee,
   upsertMatch,
+  voidChallengeBet,
 } from "./actions";
 import styles from "./admin.module.css";
 import { isAdminAuthed } from "@/lib/auth/admin";
@@ -39,6 +42,7 @@ interface Round {
   format: string;
   course_id: string;
   default_tee_id: string | null;
+  skins_buy_in: number | null;
 }
 interface Match {
   id: string;
@@ -72,10 +76,19 @@ interface HoleScoreRow {
   breakfast_ball: boolean;
   mulligan: boolean;
 }
+interface ChallengeBet {
+  id: string;
+  proposer_id: string;
+  acceptor_id: string | null;
+  terms: string;
+  stake: number | null;
+  status: string;
+  winner_player_id: string | null;
+}
 
 async function loadAdminData() {
   const supabase = await createClient();
-  const [players, teams, teamMembers, rounds, matches, courses, courseTees] =
+  const [players, teams, teamMembers, rounds, matches, courses, courseTees, challengeBets] =
     await Promise.all([
       supabase.from("players").select("id, name, index").order("name"),
       supabase.from("teams").select("id, name, captain_player_id").order("name"),
@@ -86,16 +99,33 @@ async function loadAdminData() {
       supabase
         .from("course_tees")
         .select("id, course_id, tee_name, rating, slope, par, stroke_index, par_by_hole, yardage_by_hole"),
+      supabase
+        .from("challenge_bets")
+        .select("id, proposer_id, acceptor_id, terms, stake, status, winner_player_id"),
     ]);
+
+  // Fetched separately from the core round fields above: if 0019 (skins_buy_in) hasn't run
+  // yet on this database, this query alone fails and falls back to "unset" everywhere —
+  // it must never take down Matchups/Corrections, which only need the fields above.
+  const { data: buyIns } = await supabase.from("rounds").select("id, skins_buy_in");
+  const buyInByRoundId = new Map<string, number | null>(
+    (buyIns ?? []).map((r) => [r.id, r.skins_buy_in]),
+  );
+
+  const roundsList = (rounds.data ?? []).map((r) => ({
+    ...r,
+    skins_buy_in: buyInByRoundId.get(r.id) ?? null,
+  })) as Round[];
 
   return {
     players: (players.data ?? []) as Player[],
     teams: (teams.data ?? []) as Team[],
     teamMembers: (teamMembers.data ?? []) as TeamMember[],
-    rounds: (rounds.data ?? []) as Round[],
+    rounds: roundsList,
     matches: (matches.data ?? []) as Match[],
     courses: (courses.data ?? []) as Course[],
     courseTees: (courseTees.data ?? []) as CourseTee[],
+    challengeBets: (challengeBets.data ?? []) as ChallengeBet[],
   };
 }
 
@@ -139,7 +169,7 @@ export default async function AdminPage({
     );
   }
 
-  const { players, teams, teamMembers, rounds, matches, courses, courseTees } =
+  const { players, teams, teamMembers, rounds, matches, courses, courseTees, challengeBets } =
     await loadAdminData();
   const selectedRoundId = params.round ?? rounds[0]?.id;
   const holeScores = await loadHoleScores(selectedRoundId);
@@ -241,6 +271,21 @@ export default async function AdminPage({
               <div className={styles.hint}>
                 <b style={{ color: "var(--cream)" }}>{round.date}</b> · {round.format}
               </div>
+              <form action={setSkinsBuyIn} className={styles.inlineForm}>
+                <input type="hidden" name="roundId" value={round.id} />
+                <span className={styles.hint}>Skins buy-in ($):</span>
+                <input
+                  className={styles.input}
+                  type="number"
+                  step="1"
+                  name="skinsBuyIn"
+                  defaultValue={round.skins_buy_in ?? ""}
+                  placeholder="TBD"
+                />
+                <button className={styles.btn} type="submit">
+                  Save
+                </button>
+              </form>
               {roundMatches.map((m) => (
                 <div key={m.id} className={styles.inlineForm}>
                   <form action={upsertMatch} className={styles.inlineForm}>
@@ -430,6 +475,51 @@ export default async function AdminPage({
               </button>
             </span>
           </form>
+        ))}
+      </section>
+
+      {/* ---------------- Challenge Ledger ---------------- */}
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}>Challenge Ledger — dispute/void/reassign</div>
+        {challengeBets.length === 0 && (
+          <div className={styles.hint}>No bets logged yet.</div>
+        )}
+        {challengeBets.map((bet) => (
+          <div key={bet.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
+            <div className={styles.hint}>
+              <b style={{ color: "var(--cream)" }}>
+                {playerName(bet.proposer_id)} v {playerName(bet.acceptor_id ?? "")}
+              </b>
+              {" · "}
+              {bet.stake !== null ? `$${bet.stake}` : "no stake"} · {bet.terms} ·{" "}
+              <b style={{ color: "var(--gold)" }}>{bet.status}</b>
+              {bet.winner_player_id && ` · winner: ${playerName(bet.winner_player_id)}`}
+            </div>
+            <div className={styles.inlineForm}>
+              <form action={reassignChallengeBetWinner} className={styles.inlineForm}>
+                <input type="hidden" name="id" value={bet.id} />
+                <select className={styles.select} name="winnerPlayerId" defaultValue={bet.winner_player_id ?? ""}>
+                  <option value="">No winner (reopen)</option>
+                  {[bet.proposer_id, bet.acceptor_id].filter(Boolean).map((pid) => (
+                    <option key={pid} value={pid!}>
+                      {playerName(pid!)}
+                    </option>
+                  ))}
+                </select>
+                <button className={styles.btn} type="submit">
+                  Set winner
+                </button>
+              </form>
+              {bet.status !== "void" && (
+                <form action={voidChallengeBet}>
+                  <input type="hidden" name="id" value={bet.id} />
+                  <button className={styles.btnDanger} type="submit">
+                    Void
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
         ))}
       </section>
     </main>

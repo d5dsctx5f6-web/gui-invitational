@@ -164,6 +164,22 @@ export async function deleteMatch(formData: FormData) {
   flash("Matchup removed");
 }
 
+export async function setSkinsBuyIn(formData: FormData) {
+  await requireAdmin();
+  const roundId = String(formData.get("roundId"));
+  const raw = String(formData.get("skinsBuyIn") ?? "").trim();
+  const skinsBuyIn = raw === "" ? null : Number(raw);
+  if (skinsBuyIn !== null && Number.isNaN(skinsBuyIn)) flashError("Buy-in must be a number");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("rounds").update({ skins_buy_in: skinsBuyIn }).eq("id", roundId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/money");
+  flash("Skins buy-in updated");
+}
+
 // ---------------------------------------------------------------------------
 // Indexes
 // ---------------------------------------------------------------------------
@@ -285,4 +301,43 @@ export async function correctHoleScore(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/score");
   flash("Score corrected — recomputes everywhere downstream");
+}
+
+// ---------------------------------------------------------------------------
+// Challenge Ledger — dispute/void/reassign (PRODUCT_SPEC §3 commissioner control).
+// Logging, accepting, and settling happen player-side under their own RLS scoping (0018);
+// this is the escape hatch for when a bet needs correcting after the fact.
+// ---------------------------------------------------------------------------
+
+export async function voidChallengeBet(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("challenge_bets")
+    .update({ status: "void" })
+    .eq("id", id);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/money");
+  flash("Challenge bet voided");
+}
+
+export async function reassignChallengeBetWinner(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+  const winnerPlayerId = String(formData.get("winnerPlayerId") ?? "") || null;
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("challenge_bets")
+    .update({ status: winnerPlayerId ? "settled" : "open", winner_player_id: winnerPlayerId })
+    .eq("id", id);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/money");
+  flash("Challenge bet winner reassigned");
 }

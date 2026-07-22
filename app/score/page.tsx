@@ -10,6 +10,7 @@ import type {
   ScorecardDuo,
   ScorecardHoleMeta,
   ScorecardPlayer,
+  ScorecardReverseMulligan,
 } from "./types";
 
 export const dynamic = "force-dynamic";
@@ -90,6 +91,20 @@ async function loadScorecardData(): Promise<ScorecardData | null> {
     .eq("round_id", match.round_id)
     .in("player_id", allPlayerIds);
 
+  const { data: rmRows } = await supabase
+    .from("reverse_mulligans")
+    .select("id, team_id, hole, victim_player_id, original_holed_score")
+    .eq("round_id", match.round_id)
+    .in("team_id", [match.team_a_id, match.team_b_id]);
+
+  const reverseMulligans: ScorecardReverseMulligan[] = (rmRows ?? []).map((row) => ({
+    id: row.id,
+    teamId: row.team_id,
+    hole: row.hole,
+    victimPlayerId: row.victim_player_id,
+    originalHoledScore: row.original_holed_score,
+  }));
+
   const strokeIndexByHole: number[] = tee.stroke_index;
   const parByHole: number[] | null = tee.par_by_hole;
   const yardageByHole: number[] | null = tee.yardage_by_hole;
@@ -142,6 +157,7 @@ async function loadScorecardData(): Promise<ScorecardData | null> {
     duoB: buildDuo(match.team_b_id, teamBPlayerIds),
     holes,
     existingScores,
+    reverseMulligans,
   };
 }
 
@@ -175,5 +191,5 @@ export default async function ScorePage() {
     );
   }
 
-  return <Scorecard data={data} />;
+  return <Scorecard data={data} currentPlayerId={player.id} />;
 }

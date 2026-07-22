@@ -17,11 +17,12 @@ panel (never exposed to the client) for corrections and setup writes.
 | `matches` | `0006` | Rounds & formats — one duo-vs-duo match per team pairing per round |
 | `duo_submissions` | `0006` | Duo submissions — captain's blind Duo A / Duo B picks, revealed simultaneously |
 | `hole_scores` | `0007` | Do-overs, reverse mulligan two-score rule — the raw event table; `strokes` for skins/individual, `coalesce(match_strokes, strokes)` for match play |
-| `reverse_mulligans` | `0008` (stub) | Reverse mulligan (team weapon) — logic deferred to Brief 3 |
-| `skins_entries` | `0008` (stub) | Money — gross skins, opt-in — logic deferred to Brief 3 |
-| `challenge_bets` | `0008` (stub) | Money — Challenge Ledger — logic deferred to Brief 3 |
-| `schedule_items` | `0008` (stub) | Beyond scoring — schedule/itinerary, including the Friday fun round |
+| `reverse_mulligans` | `0008` (stub), writes in `0018` | Reverse mulligan (team weapon) — one row per call, `team_id` is the calling team |
+| `skins_entries` | `0008` (stub), writes in `0018` | Money — gross skins, opt-in — a player's own toggle |
+| `challenge_bets` | `0008` (stub), writes in `0018` | Money — Challenge Ledger — proposer/acceptor scoped writes |
+| `schedule_items` | `0008` (stub) | Beyond scoring — schedule/itinerary, including the Friday fun round — still stub, Brief 8 |
 | `player_auth` / `player_devices` | `0013` | Player access (the PIN model) — no accounts, no email; rides on Supabase Auth anonymous sign-in so RLS can be genuinely identity-aware. `pin_hash` is never selectable directly, only via the `set_player_pin`/`verify_and_link_pin` SECURITY DEFINER functions |
+| `rounds.skins_buy_in` | `0019` | Money — nullable per-round buy-in; null means the Money screen shows skin counts, not dollars, per SPEC §6's "never hard-block on a pending input" |
 
 ## Writes since Brief 6
 
@@ -52,6 +53,22 @@ Supabase lands in `extensions` by convention, not `public`. `set_player_pin()` a
 `function gen_salt(unknown) does not exist` the first time anyone tried to set a PIN. `0016`
 looks up pgcrypto's actual schema at runtime (rather than hardcoding `extensions`) and widens
 both functions' `search_path` to include it.
+
+## Writes since Brief 7
+
+`0017` adds `hole_scores`, `reverse_mulligans`, `duo_submissions`, `skins_entries`, and
+`challenge_bets` to the `supabase_realtime` publication (RLS still gates what a subscriber
+actually receives — this only controls what's eligible to stream). `0018` gives each
+previously-read-only stub table its first real write path, each scoped to the specific
+player(s) the action belongs to rather than "any signed-in player" (unlike `hole_scores`'s
+intentionally loose Brief 6 scoping):
+
+- `reverse_mulligans` insert — any member of the *calling* team (`team_members`).
+- `duo_submissions` insert/update — only that team's actual `captain_player_id`, writing only
+  as themselves.
+- `skins_entries` insert/delete — a player can only opt themselves in or out.
+- `challenge_bets` insert — the proposer, naming themselves. Update — either named party
+  (proposer or acceptor) only. Void/reassign is admin-only, through the service-role client.
 
 ## Count-agnostic schema notes
 
