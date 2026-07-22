@@ -28,7 +28,20 @@ panel (never exposed to the client) for corrections and setup writes.
 `hole_scores` inserts/updates require an authenticated (signed-in) session — see `0014`. Every
 other table's writes go through the admin panel's service-role server actions (Brief 6 Part D),
 which bypass RLS entirely after a passcode check in application code, not through client-side
-RLS policies. `SELECT` stays anon-open on every table, as it's been since M0.
+RLS policies. `SELECT` is open to everyone — both the `anon` and `authenticated` Postgres roles
+(see `0015` below; this was a real gap for a few days, not just "anon since M0").
+
+### `0015` — the anon-only-read regression
+
+Every `SELECT` policy from M0 through M2 was scoped `to anon` only, because until Brief 6 there
+was no other role in play — every request genuinely came in as `anon`. Brief 6 added Supabase
+Auth anonymous sign-in, established eagerly on every page load (`IdentityPicker`'s `useEffect`
+calls `signInAnonymously()` before a player even picks their name). An anonymous session's JWT
+carries `role: authenticated`, not `anon` — so from the moment a device picks up that invisible
+session, every read from it was evaluated against `authenticated`-role policies, none of which
+existed. RLS denial and "no rows" look identical over PostgREST, so this failed silently: the
+roster (and every other table) just rendered empty, no error anywhere. `0015` widens every
+existing read policy to `anon, authenticated`.
 
 ## Count-agnostic schema notes
 
