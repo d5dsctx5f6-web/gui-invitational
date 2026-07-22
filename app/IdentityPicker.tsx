@@ -21,9 +21,12 @@ type PickerState =
 export function IdentityPicker({
   players,
   currentPlayer,
+  redirectTo = "/",
 }: {
   players: Player[];
   currentPlayer: CurrentPlayer | null;
+  /** Where to land after a successful sign-in — e.g. "/score" when embedded there. */
+  redirectTo?: string;
 }) {
   const [picker, setPicker] = useState<PickerState>({ step: "idle" });
   const [pin, setPin] = useState("");
@@ -96,7 +99,7 @@ export function IdentityPicker({
       return;
     }
 
-    window.location.reload();
+    window.location.href = redirectTo;
   }
 
   return (

@@ -1,7 +1,8 @@
-import Link from "next/link";
+import { IdentityPicker } from "../IdentityPicker";
 import { courseHandicap, playingHandicap, strokesForHoles } from "@/engine/src";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
+import pageStyles from "../page.module.css";
 import { Scorecard } from "./Scorecard";
 import type {
   ExistingHoleScore,
@@ -148,14 +149,18 @@ export default async function ScorePage() {
   const player = await getCurrentPlayer();
 
   if (!player) {
+    const supabase = await createClient();
+    const { data: players } = await supabase
+      .from("players")
+      .select("id, name")
+      .order("name");
+
     return (
-      <main style={{ padding: 24, color: "var(--cream)" }}>
-        <p>Sign in with your name and PIN before scoring a round.</p>
-        <p style={{ marginTop: 12 }}>
-          <Link href="/" style={{ color: "var(--gold)" }}>
-            ← Back to sign in
-          </Link>
+      <main className={pageStyles.page}>
+        <p style={{ color: "var(--cream)", textAlign: "center" }}>
+          Sign in with your name and PIN to score this round.
         </p>
+        <IdentityPicker players={players ?? []} currentPlayer={null} redirectTo="/score" />
       </main>
     );
   }
