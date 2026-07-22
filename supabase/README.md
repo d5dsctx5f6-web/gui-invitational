@@ -43,6 +43,16 @@ existed. RLS denial and "no rows" look identical over PostgREST, so this failed 
 roster (and every other table) just rendered empty, no error anywhere. `0015` widens every
 existing read policy to `anon, authenticated`.
 
+### `0016` — pgcrypto search_path gap
+
+`0013` ran `create extension if not exists pgcrypto;` with no explicit schema, which on
+Supabase lands in `extensions` by convention, not `public`. `set_player_pin()` and
+`verify_and_link_pin()` are `SECURITY DEFINER` with `set search_path = public`, which excludes
+`extensions` — so `crypt()`/`gen_salt()` weren't visible inside either function, surfacing as
+`function gen_salt(unknown) does not exist` the first time anyone tried to set a PIN. `0016`
+looks up pgcrypto's actual schema at runtime (rather than hardcoding `extensions`) and widens
+both functions' `search_path` to include it.
+
 ## Count-agnostic schema notes
 
 - `team_members` has no CHECK forcing exactly 4 rows per team — a team can be short a player.
