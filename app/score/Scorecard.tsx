@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
+  computeIndividualRace,
   computeMatchState,
   matchScore,
   netScore,
+  realScore,
   type DuoHoleNets,
+  type PlayerHoleNet,
   type SegmentState,
 } from "@/engine/src";
 import { getSupabase } from "@/lib/supabase";
@@ -81,6 +84,7 @@ export function Scorecard({ data }: { data: ScorecardData }) {
   );
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const holeMeta = data.holes.find((h) => h.hole === currentHole)!;
 
@@ -114,6 +118,39 @@ export function Scorecard({ data }: { data: ScorecardData }) {
     return computeMatchState(holes);
   }, [postedScores, data]);
 
+  const runningTotals = useMemo(() => {
+    const grossByPlayer = new Map<string, number>();
+    for (const s of postedScores) {
+      grossByPlayer.set(s.playerId, (grossByPlayer.get(s.playerId) ?? 0) + s.strokes);
+    }
+
+    const netEntries: PlayerHoleNet[] = postedScores.map((s) => {
+      const player = allPlayers.find((p) => p.id === s.playerId)!;
+      return {
+        playerId: s.playerId,
+        roundId: data.roundId,
+        hole: s.hole,
+        net: netScore(realScore(s), player.dotsByHole[s.hole - 1]),
+      };
+    });
+    const race = computeIndividualRace(netEntries);
+
+    return allPlayers.map((p) => {
+      const standing = race.standings.find((s) => s.playerId === p.id);
+      return {
+        playerId: p.id,
+        name: p.name,
+        gross: grossByPlayer.get(p.id) ?? 0,
+        net: standing?.cumulativeNet ?? 0,
+        holesPlayed: standing?.holesPlayed ?? 0,
+      };
+    });
+  }, [postedScores, allPlayers, data.roundId]);
+
+  const isEditingExisting = allPlayers.every((p) =>
+    postedScores.some((s) => s.playerId === p.id && s.hole === currentHole),
+  );
+
   function usedOnOtherHole(
     playerId: string,
     flag: "breakfastBall" | "mulligan",
@@ -143,13 +180,15 @@ export function Scorecard({ data }: { data: ScorecardData }) {
   }
 
   async function postHole() {
+    const postedHole = currentHole;
     setPosting(true);
     setError(null);
+    setSuccessMessage(null);
 
     const rows = allPlayers.map((p) => ({
       player_id: p.id,
       round_id: data.roundId,
-      hole: currentHole,
+      hole: postedHole,
       strokes: entries[p.id].strokes,
       breakfast_ball: entries[p.id].breakfastBall,
       mulligan: entries[p.id].mulligan,
@@ -163,18 +202,18 @@ export function Scorecard({ data }: { data: ScorecardData }) {
     setPosting(false);
 
     if (upsertError) {
-      setError(upsertError.message);
+      setError(`Hole ${postedHole} did not save: ${upsertError.message}`);
       return;
     }
 
     setPostedScores((prev) => {
       const withoutThisHole = prev.filter(
         (s) =>
-          !(s.hole === currentHole && allPlayers.some((p) => p.id === s.playerId)),
+          !(s.hole === postedHole && allPlayers.some((p) => p.id === s.playerId)),
       );
       const newRows: ExistingHoleScore[] = allPlayers.map((p) => ({
         playerId: p.id,
-        hole: currentHole,
+        hole: postedHole,
         strokes: entries[p.id].strokes,
         matchStrokes: null,
         breakfastBall: entries[p.id].breakfastBall,
@@ -182,6 +221,7 @@ export function Scorecard({ data }: { data: ScorecardData }) {
       }));
       return [...withoutThisHole, ...newRows];
     });
+    setSuccessMessage(`Hole ${postedHole} posted — saved to Supabase`);
     setCurrentHole((h) => Math.min(h + 1, 18));
   }
 
@@ -229,23 +269,46 @@ export function Scorecard({ data }: { data: ScorecardData }) {
         <button
           className={styles.navbtn}
           disabled={currentHole === 1}
-          onClick={() => setCurrentHole((h) => Math.max(1, h - 1))}
+          onClick={() => {
+            setSuccessMessage(null);
+            setError(null);
+            setCurrentHole((h) => Math.max(1, h - 1));
+          }}
         >
           ← Hole {currentHole - 1}
         </button>
         <button
           className={styles.navbtn}
           disabled={currentHole === 18}
-          onClick={() => setCurrentHole((h) => Math.min(18, h + 1))}
+          onClick={() => {
+            setSuccessMessage(null);
+            setError(null);
+            setCurrentHole((h) => Math.min(18, h + 1));
+          }}
         >
           Hole {currentHole + 1} →
         </button>
       </div>
 
+      {successMessage && (
+        <div className={styles.success} role="status">
+          ✓ {successMessage}
+        </div>
+      )}
+      {error && (
+        <div className={styles.error} role="alert">
+          ⚠ {error}
+        </div>
+      )}
+
       <div className={styles.card}>
         <div className={styles.cardhead}>
           <h2>Hole {currentHole} scores</h2>
-          <div className={styles.meta}>gross · dots = strokes</div>
+          {isEditingExisting ? (
+            <div className={styles.editingBadge}>Already posted — editing</div>
+          ) : (
+            <div className={styles.meta}>gross · dots = strokes</div>
+          )}
         </div>
         {allPlayers.map((p) => {
           const entry = entries[p.id];
@@ -325,7 +388,20 @@ export function Scorecard({ data }: { data: ScorecardData }) {
         })}
       </div>
 
-      {error && <div className={styles.error}>{error}</div>}
+      <div className={styles.card}>
+        <div className={styles.cardhead}>
+          <h2>Running totals</h2>
+          <div className={styles.meta}>thru · gross · net</div>
+        </div>
+        {runningTotals.map((t) => (
+          <div className={styles.totalsRow} key={t.playerId}>
+            <span className={styles.totalsName}>{t.name}</span>
+            <span className={styles.totalsThru}>thru {t.holesPlayed}</span>
+            <span className={styles.totalsVal}>{t.gross}</span>
+            <span className={styles.totalsVal}>{t.net}</span>
+          </div>
+        ))}
+      </div>
 
       <button className={styles.postbtn} disabled={posting} onClick={postHole}>
         {posting ? "Posting…" : `Post hole ${currentHole}`}

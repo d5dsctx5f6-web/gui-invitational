@@ -245,10 +245,70 @@
 }
 
 .error {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.05em;
-  color: var(--red);
+  color: var(--white);
+  background: var(--red);
+  border-radius: 4px;
+  padding: 10px 12px;
   text-align: center;
+}
+
+.success {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--spruce);
+  background: var(--gold);
+  border-radius: 4px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.editingBadge {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--spruce);
+  background: var(--gold);
+  padding: 3px 8px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.totalsRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--seam2);
+  font-size: 12px;
+}
+
+.totalsRow:last-child {
+  border-bottom: none;
+}
+
+.totalsName {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.totalsThru {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tile2);
+}
+
+.totalsVal {
+  font-weight: 600;
+  color: var(--white);
+  min-width: 24px;
+  text-align: right;
 }
 
 .hint {
