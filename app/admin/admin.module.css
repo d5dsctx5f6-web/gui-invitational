@@ -1,0 +1,204 @@
+.page {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 24px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-family: var(--font-marcellus), Georgia, serif;
+  font-size: 22px;
+  color: var(--gold);
+}
+
+.logout {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--tile2);
+  border: 1px solid var(--seam);
+  border-radius: 4px;
+  padding: 6px 10px;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.flash {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.flashOk {
+  composes: flash;
+  background: var(--gold);
+  color: var(--spruce);
+}
+
+.flashErr {
+  composes: flash;
+  background: var(--red);
+  color: var(--white);
+}
+
+.gate {
+  width: 100%;
+  max-width: 340px;
+  margin: 20vh auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.gateInput {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 20px;
+  letter-spacing: 0.2em;
+  text-align: center;
+  font-family: inherit;
+  background: var(--board2);
+  color: var(--white);
+  border: 2px solid var(--seam);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.gateSubmit {
+  width: 100%;
+  border: none;
+  background: var(--red);
+  color: var(--white);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.section {
+  background: var(--board2);
+  border: 2px solid var(--seam);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--seam2);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.inlineForm {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.input,
+.select {
+  font-family: inherit;
+  font-size: 12px;
+  background: var(--spruce);
+  color: var(--cream);
+  border: 1px solid var(--seam);
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+
+.input[type="number"] {
+  width: 70px;
+}
+
+.wide {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.textarea {
+  composes: input;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: monospace;
+  resize: vertical;
+  min-height: 40px;
+}
+
+.btn {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: none;
+  border-radius: 3px;
+  padding: 7px 10px;
+  cursor: pointer;
+  background: var(--gold);
+  color: var(--spruce);
+}
+
+.btnDanger {
+  composes: btn;
+  background: var(--red);
+  color: var(--white);
+}
+
+.btnGhost {
+  composes: btn;
+  background: none;
+  border: 1px solid var(--seam);
+  color: var(--tile2);
+}
+
+.hint {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--tile2);
+}
+
+.checkboxLabel {
+  font-size: 11px;
+  color: var(--tile2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
