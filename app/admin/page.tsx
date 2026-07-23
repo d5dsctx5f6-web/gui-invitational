@@ -9,6 +9,7 @@ import {
   deleteMatch,
   reassignChallengeBetWinner,
   removeTeamMember,
+  resetPlayerPin,
   setSkinsBuyIn,
   updatePlayerIndex,
   updateTeam,
@@ -16,7 +17,9 @@ import {
   upsertMatch,
   voidChallengeBet,
 } from "./actions";
+import Link from "next/link";
 import styles from "./admin.module.css";
+import pageStyles from "../page.module.css";
 import { isAdminAuthed } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -151,6 +154,9 @@ export default async function AdminPage({
   if (!authed) {
     return (
       <main className={styles.page}>
+        <Link href="/" className={pageStyles.backLink}>
+          ← Home
+        </Link>
         <form action={adminLogin} className={styles.gate}>
           <div className={styles.title}>Commissioner</div>
           {params.err && <div className={styles.flashErr}>{params.err}</div>}
@@ -179,7 +185,12 @@ export default async function AdminPage({
   return (
     <main className={styles.page}>
       <div className={styles.header}>
-        <div className={styles.title}>Commissioner</div>
+        <div>
+          <Link href="/" className={pageStyles.backLink}>
+            ← Home
+          </Link>
+          <div className={styles.title}>Commissioner</div>
+        </div>
         <form action={adminLogout}>
           <button className={styles.logout} type="submit">
             Log out
@@ -391,22 +402,30 @@ export default async function AdminPage({
       <section className={styles.section}>
         <div className={styles.sectionTitle}>Handicap indexes</div>
         {players.map((p) => (
-          <form key={p.id} action={updatePlayerIndex} className={styles.row}>
-            <input type="hidden" name="playerId" value={p.id} />
+          <div key={p.id} className={styles.row}>
             <span>{p.name}</span>
             <span className={styles.inlineForm}>
-              <input
-                className={styles.input}
-                type="number"
-                step="0.1"
-                name="index"
-                defaultValue={p.index ?? ""}
-              />
-              <button className={styles.btn} type="submit">
-                Save
-              </button>
+              <form action={updatePlayerIndex} className={styles.inlineForm}>
+                <input type="hidden" name="playerId" value={p.id} />
+                <input
+                  className={styles.input}
+                  type="number"
+                  step="0.1"
+                  name="index"
+                  defaultValue={p.index ?? ""}
+                />
+                <button className={styles.btn} type="submit">
+                  Save
+                </button>
+              </form>
+              <form action={resetPlayerPin}>
+                <input type="hidden" name="playerId" value={p.id} />
+                <button className={styles.btnGhost} type="submit">
+                  Reset PIN
+                </button>
+              </form>
             </span>
-          </form>
+          </div>
         ))}
       </section>
 

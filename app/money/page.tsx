@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
 import { IdentityPicker } from "../IdentityPicker";
@@ -24,6 +25,9 @@ export default async function MoneyPage({
 
     return (
       <main className={pageStyles.page}>
+        <Link href="/" className={pageStyles.backLink}>
+          ← Home
+        </Link>
         <p style={{ color: "var(--cream)", textAlign: "center" }}>
           Sign in with your name and PIN to see the Money screen.
         </p>
@@ -42,6 +46,9 @@ export default async function MoneyPage({
   if (!roundsCore || roundsCore.length === 0) {
     return (
       <main style={{ padding: 24, color: "var(--cream)" }}>
+        <Link href="/" className={pageStyles.backLink}>
+          ← Home
+        </Link>
         <p>No rounds set up yet — check back after admin publishes the schedule.</p>
       </main>
     );
@@ -72,6 +79,9 @@ export default async function MoneyPage({
 
   return (
     <main className={styles.page}>
+      <Link href="/" className={pageStyles.backLink}>
+        ← Home
+      </Link>
       <div className={styles.eyebrow}>
         Money · <b>skins + the Challenge Ledger — nothing else</b>
       </div>

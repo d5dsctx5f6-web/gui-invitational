@@ -199,6 +199,34 @@ export async function updatePlayerIndex(formData: FormData) {
   flash("Index updated");
 }
 
+// Brief 7.5 Part B: a commissioner override for a locked-out player or a lost device —
+// consistent with the friends-trip threat model (ARCHITECTURE §2), no email/recovery flow.
+// Clears the PIN hash so their next sign-in is treated as first-time (prompted to set a new
+// PIN), and also clears every device this player was ever linked to: a PIN reset implies the
+// old device linkage shouldn't silently keep working, since the whole point is "this device/PIN
+// is no longer trusted."
+export async function resetPlayerPin(formData: FormData) {
+  await requireAdmin();
+  const playerId = String(formData.get("playerId"));
+
+  const supabase = createAdminClient();
+
+  const { error: authError } = await supabase
+    .from("player_auth")
+    .delete()
+    .eq("player_id", playerId);
+  if (authError) flashError(authError.message);
+
+  const { error: deviceError } = await supabase
+    .from("player_devices")
+    .delete()
+    .eq("player_id", playerId);
+  if (deviceError) flashError(deviceError.message);
+
+  revalidatePath("/admin");
+  flash("PIN reset — their next sign-in will prompt to set a new one");
+}
+
 // ---------------------------------------------------------------------------
 // Course setups
 // ---------------------------------------------------------------------------

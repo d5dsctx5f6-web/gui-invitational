@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { IdentityPicker } from "../IdentityPicker";
 import { courseHandicap, playingHandicap, strokesForHoles } from "@/engine/src";
 import { getCurrentPlayer } from "@/lib/auth/player";
@@ -173,6 +174,9 @@ export default async function ScorePage() {
 
     return (
       <main className={pageStyles.page}>
+        <Link href="/" className={pageStyles.backLink}>
+          ← Home
+        </Link>
         <p style={{ color: "var(--cream)", textAlign: "center" }}>
           Sign in with your name and PIN to score this round.
         </p>
@@ -186,6 +190,9 @@ export default async function ScorePage() {
   if (!data) {
     return (
       <main style={{ padding: 24, color: "var(--cream)" }}>
+        <Link href="/" className={pageStyles.backLink}>
+          ← Home
+        </Link>
         <p>No match seeded yet. Run the Brief 3 demo-seed migration.</p>
       </main>
     );
