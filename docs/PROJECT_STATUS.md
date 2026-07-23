@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 22, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening) built and pushed on top of it. Outstanding: Brief 7's live two-device gate and Brief 9's own live verification, both independent and can happen on their own schedule — read this first before resuming.
+**Last updated:** July 22, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening) and Brief 10 (score routing fix) both built and pushed on top of it. Outstanding: Brief 7's live two-device gate and Brief 9's own live verification, both independent and can happen on their own schedule — read this first before resuming.
 
 ---
 
@@ -17,6 +17,7 @@
 - **Brief 7.5 (punch-list) — CLOSED**: a `← Home` link added everywhere it was missing — turned out to be `/duos`, `/money`, `/score`'s two early-return states, and both of `/admin`'s (the gap wasn't only `/duos`/`/money` as first flagged). Admin can now reset a player's PIN (clears `player_auth` + every `player_devices` link for them), closing the gap flagged in Brief 7's addendum before broad live testing starts. See `SESSION_ADDENDUM_BRIEF7_5.md`.
 - **Brief 8 (M3 Part 3) — CLOSED, closes M3**: `/schedule` — read-only, grouped by day, pulling from `schedule_items` (stubbed since Brief 2, unused until now). `/champions` — loops over every `seasons` row, three trophy lines each (Cup, Low Man, Skins King), independently "— in play —" until admin records a winner; admin-recorded at trip's end rather than derived live, a deliberate scope choice (deriving would mean building the trip-wide standings screen this project has never had a UI for). New admin sections for both. Migration `0020` adds the three nullable trophy columns to `seasons`. Caught and fixed the same class of regression as Brief 7 before close: `/champions`' first draft queried the not-yet-migrated trophy columns in the same call as the core season fields, which would have hidden Year One entirely on a pre-migration database — fixed with the by-now-standard decoupled-fetch pattern. See `SESSION_ADDENDUM_BRIEF8.md`.
 - **Brief 9 (admin & UX hardening) — code complete and pushed, live gate pending**: admin delete for courses/rounds/teams/matches/challenge bets, dependency-aware confirmations backed by real `ON DELETE CASCADE` FKs (migration `0021`) rather than manual multi-step deletes. Rounds now display as "Course — Format" everywhere. Home page's primary actions are bigger and moved above the roster; back-links and the roster picker got real touch targets. The actual bug fix: admin never had a reverse-mulligan removal capability at all — built one, and it correctly clears the affected hole's stale `match_strokes` on removal, not just the event row. Scorecard now shows a course/format/date header. Skins opt-in is a confirm-then-lock one-way door for players, with an admin override to remove a mistaken entry. See `SESSION_ADDENDUM_BRIEF9.md`.
+- **Brief 10 (score routing fix) — CLOSED**: `/score` no longer grabs "the first match in the table" — it derives the signed-in player's actual match from identity (`team_members` → `matches` → the specific slot via `duo_submissions`, since a team pairing is *two* match rows sharing the same team IDs, not one — team membership alone can't tell them apart). Verified by hand-tracing the real production data for the exact scenario that surfaced the bug (Zac Jones landing on the wrong matchup) plus a cross-check on an unrelated matchup and a same-foursome grouping check for the Brief 7 realtime gate — all three traced correctly. See `SESSION_ADDENDUM_BRIEF10.md`.
 
 ## M2 status: CLOSED
 
@@ -66,9 +67,8 @@ section on the live (not-yet-migrated) database — fixed by decoupling the fetc
 - No `first_tee_at` field in the schema — the 30-minutes-before-first-tee deadline is a static
   label, not a real countdown.
 - ~~No admin "reset a player's PIN" capability~~ — closed by Brief 7.5.
-- `/score` still hardcodes "grab the first match in the table" — fine for the realtime gate
-  test (wants two devices on the *same* match) but will need a real match picker before four
-  simultaneous foursomes each need their own live scorecard on trip day.
+- ~~`/score` hardcodes "grab the first match in the table"~~ — closed by Brief 10: routing is
+  now identity-derived (team → duo slot), verified correct on both real matchups in production.
 
 ## M3 Part 3 status: CLOSED
 
@@ -111,6 +111,20 @@ banner. Confirms the plumbing; the actual successful write is Chris's to run liv
 4. Confirm skins opt-in's confirm-then-lock on a phone, and admin's override.
 5. Eyeball the bigger nav/back-links/roster targets on an actual phone in daylight.
 
+## Brief 10 (score routing fix) status: CLOSED
+
+Fixed the bug Chris hit directly: signed in as Zac Jones, "Score a round" opened a matchup he
+wasn't even in. `/score` now resolves the signed-in player's own match through
+`team_members` → `matches` → the specific slot (A/B) via that round's `duo_submissions` row —
+not `.limit(1)` on the matches table. The schema detail that mattered: a team pairing is two
+`matches` rows sharing identical team IDs, so team membership alone can't disambiguate; the
+real disambiguator is which duo slot the player's own `duo_submissions` entry puts them in.
+Verified by hand-tracing real production data (not live click-testing, for the same
+identity-squatting reasons as every prior brief) — Zac Jones resolves correctly to his real
+matchup, Matt Lacko resolves independently to a different one regardless of row order, and all
+four players sharing one foursome resolve to the same match, confirming Brief 7's realtime gate
+still works. See `SESSION_ADDENDUM_BRIEF10.md`.
+
 ## Two must-do items now closed (were carried-forward before M3)
 
 1. ~~Revoke the interim anon INSERT/UPDATE policies on `hole_scores`~~ — done in migration `0014`.
@@ -122,8 +136,8 @@ Reconcile ARCHITECTURE §5 with the schema actually built (`course_tees` split, 
 
 ## Next up
 
-Finish the two pending live gates above (Brief 7's two-device realtime gate, Brief 9's
+Finish the two pending live gates (Brief 7's two-device realtime gate, Brief 9's
 delete/RM-removal/skins-lock verification) whenever convenient — both independent of each
-other. Then, per BUILD_PLAN: **M4 — the dress rehearsal**, one fully simulated trip day with
-3+ humans on their own phones, admin setup through settle-up, end to end, on production
-infrastructure.
+other, and Brief 10's routing fix doesn't block either. Then, per BUILD_PLAN: **M4 — the dress
+rehearsal**, one fully simulated trip day with 3+ humans on their own phones, admin setup
+through settle-up, end to end, on production infrastructure.
