@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 22, 2026 · **Status:** Brief 7.5 punch-list closed; Brief 7 / M3 Part 2 live two-device gate still pending — read this first before resuming.
+**Last updated:** July 22, 2026 · **Status:** M3 is closed — all three parts built and pushed. The only thing outstanding is Brief 7's live two-device gate, which is independent of everything since and can be verified on its own — read this first before resuming.
 
 ---
 
@@ -15,6 +15,7 @@
 - **Brief 6 (M3 Part 1) — CLOSED, verified live**: the two carried-forward items closed (`reverse_mulligans` unique constraint; `hole_scores` interim anon-write revoked and replaced with an identity-scoped policy). Real player identity (name + 4-digit PIN, riding on Supabase Auth anonymous sign-in) and a passcode-gated `/admin` panel (teams, matchups, indexes, course setups, and the key one — corrections that ripple downstream with no redeploy). Verified live on Chris's phone: PIN sign-in works and persists, admin passcode gate works, a live score correction and a mulligan toggle both rippled through to the scorecard in real time with no redeploy. Three bugs were caught and fixed mid-verification: a sign-in dead-end (`092268c`), an anon-only-read RLS regression that silently emptied every table for any signed-in device (`d5a2882`), and a pgcrypto search_path gap that broke PIN-setting (`1535863`). See `SESSION_ADDENDUM_BRIEF6_CLOSED.md`.
 - **Brief 7 (M3 Part 2) — code complete and pushed, migrations run and confirmed, live gate still pending**: realtime subscriptions (`hole_scores`, `reverse_mulligans`, `duo_submissions`, `skins_entries`, `challenge_bets`) with focus/visibility-regain refetch for backgrounded phones. `/duos` — blind duo submissions, blindness enforced structurally (no draft row exists until a captain's single atomic commit). `/money` — skins opt-in with live `computeSkins()` results, and the Challenge Ledger (log/accept/settle, admin void/reassign). Reverse-mulligan calling UI + two-score capture built into the Scorecard. Engine gained `moneyLedger.ts` (skins payouts + trip-wide running ledger); 84 tests total, all green. See `SESSION_ADDENDUM_BRIEF7.md`.
 - **Brief 7.5 (punch-list) — CLOSED**: a `← Home` link added everywhere it was missing — turned out to be `/duos`, `/money`, `/score`'s two early-return states, and both of `/admin`'s (the gap wasn't only `/duos`/`/money` as first flagged). Admin can now reset a player's PIN (clears `player_auth` + every `player_devices` link for them), closing the gap flagged in Brief 7's addendum before broad live testing starts. See `SESSION_ADDENDUM_BRIEF7_5.md`.
+- **Brief 8 (M3 Part 3) — CLOSED, closes M3**: `/schedule` — read-only, grouped by day, pulling from `schedule_items` (stubbed since Brief 2, unused until now). `/champions` — loops over every `seasons` row, three trophy lines each (Cup, Low Man, Skins King), independently "— in play —" until admin records a winner; admin-recorded at trip's end rather than derived live, a deliberate scope choice (deriving would mean building the trip-wide standings screen this project has never had a UI for). New admin sections for both. Migration `0020` adds the three nullable trophy columns to `seasons`. Caught and fixed the same class of regression as Brief 7 before close: `/champions`' first draft queried the not-yet-migrated trophy columns in the same call as the core season fields, which would have hidden Year One entirely on a pre-migration database — fixed with the by-now-standard decoupled-fetch pattern. See `SESSION_ADDENDUM_BRIEF8.md`.
 
 ## M2 status: CLOSED
 
@@ -68,6 +69,22 @@ section on the live (not-yet-migrated) database — fixed by decoupling the fetc
   test (wants two devices on the *same* match) but will need a real match picker before four
   simultaneous foursomes each need their own live scorecard on trip day.
 
+## M3 Part 3 status: CLOSED
+
+`/schedule` and `/champions` are both built and pushed, migration `0020` is written (not yet
+run against the live database — nothing depends on it being run immediately; both screens
+degrade gracefully to "in play"/empty states until it is, same defensive pattern as
+`skins_buy_in`). See `SESSION_ADDENDUM_BRIEF8.md` for full detail, including the note on why
+`first_tee_at` wasn't closed here despite the brief inviting it (would have needed its own
+schedule-item↔round link, more than "if convenient" scope).
+
+## M3 status: CLOSED
+
+All three parts are built and pushed. The **only** thing left from the entire M3 milestone is
+**Brief 7's live two-device gate** (see the M3 Part 2 section above) — realtime sync, blind duo
+reveal, a skins/ledger cycle, and an RM call, all confirmed on two real devices. That
+verification is independent of Briefs 7.5 and 8 and can happen on its own schedule.
+
 ## Two must-do items now closed (were carried-forward before M3)
 
 1. ~~Revoke the interim anon INSERT/UPDATE policies on `hole_scores`~~ — done in migration `0014`.
@@ -79,4 +96,8 @@ Reconcile ARCHITECTURE §5 with the schema actually built (`course_tees` split, 
 
 ## Next up
 
-Finish the M3 Part 2 gate above, then **Brief 8 (M3 Part 3)**: the schedule/itinerary screen and the champions wall.
+**M4 — the dress rehearsal** (per BUILD_PLAN): one fully simulated trip day with 3+ humans on
+their own phones, admin setup through settle-up, end to end, on production infrastructure. Also
+the natural home for a UX/polish pass, driven by real multi-human usage rather than more guesses
+made solo. Brief 7's live two-device gate (above) can happen before, during, or independently of
+kicking that off.
