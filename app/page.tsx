@@ -19,8 +19,6 @@ export default async function Home() {
       <h1 className={styles.masthead}>THE GUI INVITATIONAL</h1>
       <p className={styles.subhead}>YEAR ONE &middot; MMXXVII</p>
 
-      <IdentityPicker players={players ?? []} currentPlayer={currentPlayer} />
-
       <Link href="/score" className={styles.scoreLink}>
         Score a round →
       </Link>
@@ -39,6 +37,8 @@ export default async function Home() {
           Champions wall
         </Link>
       </div>
+
+      <IdentityPicker players={players ?? []} currentPlayer={currentPlayer} />
 
       <footer className={styles.footer}>
         {error ? `connection failed: ${error.message}` : "connection live"}

@@ -7,9 +7,15 @@ import {
   createRound,
   createScheduleItem,
   createTeam,
+  deleteChallengeBet,
+  deleteCourse,
   deleteMatch,
+  deleteRound,
   deleteScheduleItem,
+  deleteTeam,
   reassignChallengeBetWinner,
+  removeReverseMulligan,
+  removeSkinsEntry,
   removeTeamMember,
   resetPlayerPin,
   setSeasonTrophies,
@@ -22,6 +28,8 @@ import {
   voidChallengeBet,
 } from "./actions";
 import Link from "next/link";
+import { ConfirmDeleteButton } from "./ConfirmDeleteButton";
+import { buildDeleteWarning } from "./deleteWarnings";
 import styles from "./admin.module.css";
 import pageStyles from "../page.module.css";
 import { isAdminAuthed } from "@/lib/auth/admin";
@@ -107,6 +115,19 @@ interface ScheduleItem {
   starts_at: string | null;
   notes: string | null;
 }
+interface ReverseMulligan {
+  id: string;
+  team_id: string;
+  round_id: string;
+  hole: number;
+  victim_player_id: string;
+  original_holed_score: number | null;
+}
+interface SkinsEntry {
+  id: string;
+  player_id: string;
+  round_id: string;
+}
 
 async function loadAdminData() {
   const supabase = await createClient();
@@ -121,6 +142,10 @@ async function loadAdminData() {
     challengeBets,
     seasonsCore,
     scheduleItems,
+    reverseMulligans,
+    skinsEntries,
+    holeScoreRoundIds,
+    duoSubmissionKeys,
   ] = await Promise.all([
     supabase.from("players").select("id, name, index").order("name"),
     supabase.from("teams").select("id, name, captain_player_id").order("name"),
@@ -139,6 +164,15 @@ async function loadAdminData() {
       .from("schedule_items")
       .select("id, season_id, title, starts_at, notes")
       .order("starts_at", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("reverse_mulligans")
+      .select("id, team_id, round_id, hole, victim_player_id, original_holed_score"),
+    supabase.from("skins_entries").select("id, player_id, round_id"),
+    // Lightweight, FK-only fetches purely for the delete-confirmation dependency counts below
+    // (Brief 9 Part A) — no need for the full rows, hole_scores/duo_submissions can run into
+    // the hundreds but are still trivial as just their round/team columns.
+    supabase.from("hole_scores").select("round_id"),
+    supabase.from("duo_submissions").select("round_id, team_id"),
   ]);
 
   // Fetched separately from the core round fields above: if 0019 (skins_buy_in) hasn't run
@@ -177,6 +211,32 @@ async function loadAdminData() {
     skins_king_player_id: trophiesBySeasonId.get(s.id)?.skins_king_player_id ?? null,
   })) as Season[];
 
+  // Dependency counts for the delete-confirmation warnings (Brief 9 Part A). All built from
+  // already-fetched lightweight FK lists — no per-row queries.
+  function countBy<T>(rows: T[], key: (row: T) => string): Map<string, number> {
+    const map = new Map<string, number>();
+    for (const row of rows) {
+      const k = key(row);
+      map.set(k, (map.get(k) ?? 0) + 1);
+    }
+    return map;
+  }
+
+  const matchesByRound = countBy(matches.data ?? [], (m) => m.round_id);
+  const holeScoresByRound = countBy(holeScoreRoundIds.data ?? [], (r) => r.round_id);
+  const duoSubsByRound = countBy(duoSubmissionKeys.data ?? [], (d) => d.round_id);
+  const duoSubsByTeam = countBy(duoSubmissionKeys.data ?? [], (d) => d.team_id);
+  const skinsEntriesByRound = countBy(skinsEntries.data ?? [], (s) => s.round_id);
+  const rmByRound = countBy(reverseMulligans.data ?? [], (r) => r.round_id);
+  const rmByTeam = countBy(reverseMulligans.data ?? [], (r) => r.team_id);
+  const teeSetupsByCourse = countBy(courseTees.data ?? [], (t) => t.course_id);
+  const roundsByCourse = countBy(rounds.data ?? [], (r) => r.course_id);
+  const teamMembersByTeam = countBy(teamMembers.data ?? [], (m) => m.team_id);
+  const matchesByTeam = countBy(
+    (matches.data ?? []).flatMap((m) => [m.team_a_id, m.team_b_id]),
+    (teamId) => teamId,
+  );
+
   return {
     players: (players.data ?? []) as Player[],
     teams: (teams.data ?? []) as Team[],
@@ -188,6 +248,21 @@ async function loadAdminData() {
     challengeBets: (challengeBets.data ?? []) as ChallengeBet[],
     seasons: seasonsList,
     scheduleItems: (scheduleItems.data ?? []) as ScheduleItem[],
+    reverseMulligans: (reverseMulligans.data ?? []) as ReverseMulligan[],
+    skinsEntries: (skinsEntries.data ?? []) as SkinsEntry[],
+    dependencyCounts: {
+      matchesByRound,
+      holeScoresByRound,
+      duoSubsByRound,
+      duoSubsByTeam,
+      skinsEntriesByRound,
+      rmByRound,
+      rmByTeam,
+      teeSetupsByCourse,
+      roundsByCourse,
+      teamMembersByTeam,
+      matchesByTeam,
+    },
   };
 }
 
@@ -245,17 +320,64 @@ export default async function AdminPage({
     challengeBets,
     seasons,
     scheduleItems,
+    reverseMulligans,
+    skinsEntries,
+    dependencyCounts: dc,
   } = await loadAdminData();
   const selectedRoundId = params.round ?? rounds[0]?.id;
   const holeScores = await loadHoleScores(selectedRoundId);
 
   const playerName = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
+  const courseNameForRound = (round: Round) => courseName(courses, round.course_id);
+  const roundLabel = (round: Round) => `${courseNameForRound(round)} — ${formatName(round.format)}`;
 
   function toDatetimeLocal(value: string | null): string {
     if (!value) return "";
     const d = new Date(value);
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function courseDeleteWarning(courseId: string, name: string): string {
+    return buildDeleteWarning(`"${name}"`, {
+      teeSetups: dc.teeSetupsByCourse.get(courseId) ?? 0,
+      rounds: dc.roundsByCourse.get(courseId) ?? 0,
+      matches: (rounds.filter((r) => r.course_id === courseId)).reduce(
+        (sum, r) => sum + (dc.matchesByRound.get(r.id) ?? 0),
+        0,
+      ),
+      holeScores: rounds
+        .filter((r) => r.course_id === courseId)
+        .reduce((sum, r) => sum + (dc.holeScoresByRound.get(r.id) ?? 0), 0),
+      duoSubmissions: rounds
+        .filter((r) => r.course_id === courseId)
+        .reduce((sum, r) => sum + (dc.duoSubsByRound.get(r.id) ?? 0), 0),
+      skinsEntries: rounds
+        .filter((r) => r.course_id === courseId)
+        .reduce((sum, r) => sum + (dc.skinsEntriesByRound.get(r.id) ?? 0), 0),
+      reverseMulligans: rounds
+        .filter((r) => r.course_id === courseId)
+        .reduce((sum, r) => sum + (dc.rmByRound.get(r.id) ?? 0), 0),
+    });
+  }
+
+  function roundDeleteWarning(round: Round): string {
+    return buildDeleteWarning(`"${roundLabel(round)}"`, {
+      matches: dc.matchesByRound.get(round.id) ?? 0,
+      holeScores: dc.holeScoresByRound.get(round.id) ?? 0,
+      duoSubmissions: dc.duoSubsByRound.get(round.id) ?? 0,
+      skinsEntries: dc.skinsEntriesByRound.get(round.id) ?? 0,
+      reverseMulligans: dc.rmByRound.get(round.id) ?? 0,
+    });
+  }
+
+  function teamDeleteWarning(teamId: string, name: string): string {
+    return buildDeleteWarning(`"${name}"`, {
+      teamMembers: dc.teamMembersByTeam.get(teamId) ?? 0,
+      matches: dc.matchesByTeam.get(teamId) ?? 0,
+      duoSubmissions: dc.duoSubsByTeam.get(teamId) ?? 0,
+      reverseMulligans: dc.rmByTeam.get(teamId) ?? 0,
+    });
   }
 
   return (
@@ -300,6 +422,15 @@ export default async function AdminPage({
                 <button className={styles.btn} type="submit">
                   Save
                 </button>
+              </form>
+              <form action={deleteTeam}>
+                <input type="hidden" name="teamId" value={team.id} />
+                <ConfirmDeleteButton
+                  className={styles.btnDanger}
+                  confirmMessage={teamDeleteWarning(team.id, team.name)}
+                >
+                  Delete team
+                </ConfirmDeleteButton>
               </form>
               <div className={styles.hint}>
                 {members.length === 0
@@ -355,8 +486,20 @@ export default async function AdminPage({
           const roundMatches = matches.filter((m) => m.round_id === round.id);
           return (
             <div key={round.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
-              <div className={styles.hint}>
-                <b style={{ color: "var(--cream)" }}>{round.date}</b> · {round.format}
+              <div className={styles.inlineForm} style={{ justifyContent: "space-between" }}>
+                <div className={styles.hint}>
+                  <b style={{ color: "var(--cream)" }}>{roundLabel(round)}</b>
+                  <span> · {round.date}</span>
+                </div>
+                <form action={deleteRound}>
+                  <input type="hidden" name="roundId" value={round.id} />
+                  <ConfirmDeleteButton
+                    className={styles.btnDanger}
+                    confirmMessage={roundDeleteWarning(round)}
+                  >
+                    Delete round
+                  </ConfirmDeleteButton>
+                </form>
               </div>
               <form action={setSkinsBuyIn} className={styles.inlineForm}>
                 <input type="hidden" name="roundId" value={round.id} />
@@ -403,9 +546,12 @@ export default async function AdminPage({
                   </form>
                   <form action={deleteMatch}>
                     <input type="hidden" name="matchId" value={m.id} />
-                    <button className={styles.btnDanger} type="submit">
+                    <ConfirmDeleteButton
+                      className={styles.btnDanger}
+                      confirmMessage="Remove this matchup? This cannot be undone."
+                    >
                       Remove
-                    </button>
+                    </ConfirmDeleteButton>
                   </form>
                 </div>
               ))}
@@ -510,8 +656,19 @@ export default async function AdminPage({
         <div className={styles.sectionTitle}>Course setups</div>
         {courses.map((course) => (
           <div key={course.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
-            <div className={styles.hint}>
-              <b style={{ color: "var(--cream)" }}>{course.name}</b>
+            <div className={styles.inlineForm} style={{ justifyContent: "space-between" }}>
+              <div className={styles.hint}>
+                <b style={{ color: "var(--cream)" }}>{course.name}</b>
+              </div>
+              <form action={deleteCourse}>
+                <input type="hidden" name="courseId" value={course.id} />
+                <ConfirmDeleteButton
+                  className={styles.btnDanger}
+                  confirmMessage={courseDeleteWarning(course.id, course.name)}
+                >
+                  Delete course
+                </ConfirmDeleteButton>
+              </form>
             </div>
             {courseTees
               .filter((t) => t.course_id === course.id)
@@ -533,7 +690,7 @@ export default async function AdminPage({
       <section className={styles.section}>
         <div className={styles.sectionTitle}>Corrections</div>
         <div className={styles.hint}>Round:</div>
-        <RoundPicker rounds={rounds} selected={selectedRoundId} />
+        <RoundPicker rounds={rounds} courses={courses} selected={selectedRoundId} />
         {holeScores.length === 0 && (
           <div className={styles.hint}>No hole scores posted yet for this round.</div>
         )}
@@ -613,9 +770,75 @@ export default async function AdminPage({
                   </button>
                 </form>
               )}
+              <form action={deleteChallengeBet}>
+                <input type="hidden" name="id" value={bet.id} />
+                <ConfirmDeleteButton
+                  className={styles.btnDanger}
+                  confirmMessage={`Delete this bet between ${playerName(bet.proposer_id)} and ${playerName(bet.acceptor_id ?? "")}? This cannot be undone.`}
+                >
+                  Delete
+                </ConfirmDeleteButton>
+              </form>
             </div>
           </div>
         ))}
+      </section>
+
+      {/* ---------------- Reverse mulligans (Brief 9 Part E) ---------------- */}
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}>Reverse mulligans</div>
+        {reverseMulligans.length === 0 && (
+          <div className={styles.hint}>None called yet.</div>
+        )}
+        {reverseMulligans.map((rm) => {
+          const round = rounds.find((r) => r.id === rm.round_id);
+          return (
+            <div key={rm.id} className={styles.row}>
+              <span className={styles.hint}>
+                {teamName(teams, rm.team_id)} on {playerName(rm.victim_player_id)} · hole{" "}
+                {rm.hole} · {round ? roundLabel(round) : "?"}
+                {rm.original_holed_score !== null &&
+                  ` · real score ${rm.original_holed_score} stands`}
+              </span>
+              <form action={removeReverseMulligan}>
+                <input type="hidden" name="id" value={rm.id} />
+                <ConfirmDeleteButton
+                  className={styles.btnDanger}
+                  confirmMessage="Remove this reverse mulligan? The affected hole reverts to its real score for match play too. This cannot be undone."
+                >
+                  Remove
+                </ConfirmDeleteButton>
+              </form>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* ---------------- Skins entries (Brief 9 Part G override) ---------------- */}
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}>Skins entries</div>
+        {skinsEntries.length === 0 && (
+          <div className={styles.hint}>No one opted in yet.</div>
+        )}
+        {skinsEntries.map((entry) => {
+          const round = rounds.find((r) => r.id === entry.round_id);
+          return (
+            <div key={entry.id} className={styles.row}>
+              <span className={styles.hint}>
+                {playerName(entry.player_id)} · {round ? roundLabel(round) : "?"}
+              </span>
+              <form action={removeSkinsEntry}>
+                <input type="hidden" name="id" value={entry.id} />
+                <ConfirmDeleteButton
+                  className={styles.btnDanger}
+                  confirmMessage={`Remove ${playerName(entry.player_id)}'s skins opt-in for this round? This cannot be undone.`}
+                >
+                  Remove
+                </ConfirmDeleteButton>
+              </form>
+            </div>
+          );
+        })}
       </section>
 
       {/* ---------------- Schedule ---------------- */}
@@ -742,7 +965,23 @@ function courseName(courses: Course[], courseId: string) {
   return courses.find((c) => c.id === courseId)?.name ?? "?";
 }
 
-function RoundPicker({ rounds, selected }: { rounds: Round[]; selected: string | undefined }) {
+function teamName(teams: Team[], teamId: string) {
+  return teams.find((t) => t.id === teamId)?.name ?? "?";
+}
+
+function formatName(format: string) {
+  return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
+}
+
+function RoundPicker({
+  rounds,
+  courses,
+  selected,
+}: {
+  rounds: Round[];
+  courses: Course[];
+  selected: string | undefined;
+}) {
   return (
     <div className={styles.inlineForm}>
       {rounds.map((r) => (
@@ -751,7 +990,8 @@ function RoundPicker({ rounds, selected }: { rounds: Round[]; selected: string |
           href={`/admin?round=${r.id}`}
           className={r.id === selected ? styles.btn : styles.btnGhost}
         >
-          {r.date}
+          {courseName(courses, r.course_id)} — {formatName(r.format)}
+          <span className={styles.hint}> · {r.date}</span>
         </a>
       ))}
     </div>

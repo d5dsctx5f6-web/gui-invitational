@@ -65,6 +65,24 @@ export async function updateTeam(formData: FormData) {
   flash(`Team "${name}" updated`);
 }
 
+// Brief 9 Part A: cascades to team_members, matches (either side), duo_submissions, and
+// reverse_mulligans (0021) — a team's cup-winner reference on any season is cleared (set null),
+// not cascaded, so deleting a team never silently erases champions-wall history.
+export async function deleteTeam(formData: FormData) {
+  await requireAdmin();
+  const teamId = String(formData.get("teamId"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("teams").delete().eq("id", teamId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/score");
+  revalidatePath("/duos");
+  revalidatePath("/champions");
+  flash("Team removed");
+}
+
 export async function addTeamMember(formData: FormData) {
   await requireAdmin();
   const teamId = String(formData.get("teamId"));
@@ -164,6 +182,41 @@ export async function deleteMatch(formData: FormData) {
   flash("Matchup removed");
 }
 
+// Brief 9 Part A: deleting a round cascades to its matches, hole_scores, duo_submissions,
+// skins_entries, and reverse_mulligans — enforced at the DB level (0021), not walked manually
+// here, so it's atomic. The confirmation UI computes what's about to go before this ever runs.
+export async function deleteRound(formData: FormData) {
+  await requireAdmin();
+  const roundId = String(formData.get("roundId"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("rounds").delete().eq("id", roundId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/score");
+  revalidatePath("/duos");
+  revalidatePath("/money");
+  revalidatePath("/schedule");
+  flash("Round removed");
+}
+
+// Brief 9 Part G: skins opt-in is a one-way door for players once confirmed — this is the
+// escape hatch for a genuine mistake (wrong player opted in, etc.), a commissioner override
+// same as everything else in this file, not a player-facing action.
+export async function removeSkinsEntry(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("skins_entries").delete().eq("id", id);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/money");
+  flash("Skins entry removed");
+}
+
 export async function setSkinsBuyIn(formData: FormData) {
   await requireAdmin();
   const roundId = String(formData.get("roundId"));
@@ -254,6 +307,25 @@ export async function createCourse(formData: FormData) {
 
   revalidatePath("/admin");
   flash(`Course "${name}" created`);
+}
+
+// Brief 9 Part A: cascades to course_tees and (through rounds' own cascade, 0021) every
+// round played there and everything scored in those rounds. This is the deepest cascade admin
+// exposes — the confirmation message sums dependents across every round on the course, not
+// just direct course_tees.
+export async function deleteCourse(formData: FormData) {
+  await requireAdmin();
+  const courseId = String(formData.get("courseId"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("courses").delete().eq("id", courseId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/score");
+  revalidatePath("/duos");
+  revalidatePath("/money");
+  flash("Course removed");
 }
 
 export async function upsertCourseTee(formData: FormData) {
@@ -368,6 +440,59 @@ export async function reassignChallengeBetWinner(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/money");
   flash("Challenge bet winner reassigned");
+}
+
+// Brief 9 Part A: a real delete, distinct from void — nothing else references challenge_bets,
+// so this is a plain leaf delete, no cascade to worry about.
+export async function deleteChallengeBet(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("challenge_bets").delete().eq("id", id);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/money");
+  flash("Challenge bet removed");
+}
+
+// ---------------------------------------------------------------------------
+// Reverse mulligans (Brief 9 Part E) — admin never had a removal capability at all before
+// this; whatever produced the stale match_strokes bug was a raw delete against the table
+// directly (e.g. via the Supabase dashboard), which only ever removes the event row and
+// can't know to undo its effect on hole_scores. This is the real fix: removing an RM also
+// clears match_strokes back to null on the hole it affected, restoring coalesce(match_strokes,
+// strokes) to reading the plain strokes value again — fully undoing the RM, not just its record.
+// ---------------------------------------------------------------------------
+
+export async function removeReverseMulligan(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+
+  const supabase = createAdminClient();
+
+  const { data: rm, error: fetchError } = await supabase
+    .from("reverse_mulligans")
+    .select("round_id, victim_player_id, hole")
+    .eq("id", id)
+    .single();
+  if (fetchError) flashError(fetchError.message);
+
+  const { error: deleteError } = await supabase.from("reverse_mulligans").delete().eq("id", id);
+  if (deleteError) flashError(deleteError.message);
+
+  const { error: clearError } = await supabase
+    .from("hole_scores")
+    .update({ match_strokes: null })
+    .eq("round_id", rm.round_id)
+    .eq("player_id", rm.victim_player_id)
+    .eq("hole", rm.hole);
+  if (clearError) flashError(clearError.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/score");
+  flash("Reverse mulligan removed — the hole reverts to its real score for match play too");
 }
 
 // ---------------------------------------------------------------------------

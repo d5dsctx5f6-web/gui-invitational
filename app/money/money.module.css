@@ -99,6 +99,33 @@
   opacity: 0.5;
 }
 
+.lockedBtn {
+  border: 2px solid var(--seam);
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.confirmBox {
+  border: 2px solid var(--gold);
+  border-radius: 4px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .skinRow {
   display: flex;
   justify-content: space-between;

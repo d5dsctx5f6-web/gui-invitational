@@ -40,7 +40,7 @@ export default async function MoneyPage({
 
   const { data: roundsCore } = await supabase
     .from("rounds")
-    .select("id, date, format")
+    .select("id, date, format, course_id")
     .order("date");
 
   if (!roundsCore || roundsCore.length === 0) {
@@ -67,7 +67,7 @@ export default async function MoneyPage({
 
   const selectedRoundId = rounds.find((r) => r.id === roundParam)?.id ?? rounds[0].id;
 
-  const [{ data: players }, { data: skinsEntries }, { data: holeScores }, { data: bets }] =
+  const [{ data: players }, { data: skinsEntries }, { data: holeScores }, { data: bets }, { data: courses }] =
     await Promise.all([
       supabase.from("players").select("id, name").order("name"),
       supabase.from("skins_entries").select("id, player_id, round_id"),
@@ -75,7 +75,15 @@ export default async function MoneyPage({
       supabase
         .from("challenge_bets")
         .select("id, proposer_id, acceptor_id, terms, stake, status, winner_player_id"),
+      supabase.from("courses").select("id, name"),
     ]);
+
+  const courseName = (courseId: string) =>
+    courses?.find((c) => c.id === courseId)?.name ?? "Unknown course";
+  const formatName = (format: string) =>
+    format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
+  const roundLabel = (r: { course_id: string; format: string }) =>
+    `${courseName(r.course_id)} — ${formatName(r.format)}`;
 
   return (
     <main className={styles.page}>
@@ -94,7 +102,7 @@ export default async function MoneyPage({
               href={`/money?round=${r.id}`}
               className={`${styles.roundLink} ${r.id === selectedRoundId ? styles.roundLinkActive : ""}`}
             >
-              {r.date}
+              {roundLabel(r)}
             </a>
           ))}
         </div>
@@ -108,6 +116,7 @@ export default async function MoneyPage({
         initialHoleScores={holeScores ?? []}
         initialBets={bets ?? []}
         currentPlayerId={player.id}
+        courses={courses ?? []}
       />
     </main>
   );

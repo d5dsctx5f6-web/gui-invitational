@@ -85,6 +85,10 @@ function entriesForHole(
   return next;
 }
 
+function formatName(format: string): string {
+  return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
+}
+
 function formatSegment(
   seg: SegmentState,
   aName: string,
@@ -393,6 +397,9 @@ export function Scorecard({
       <Link href="/" className={styles.backLink}>
         ← Roster
       </Link>
+      <div className={styles.roundContext}>
+        {data.courseName} · {formatName(data.format)} · {data.date}
+      </div>
       <div className={styles.eyebrow}>
         Scorekeeper · <b>{aName} v {bName}</b>
       </div>

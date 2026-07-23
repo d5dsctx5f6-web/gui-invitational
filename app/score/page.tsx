@@ -36,7 +36,7 @@ async function loadScorecardData(): Promise<ScorecardData | null> {
 
   const { data: round } = await supabase
     .from("rounds")
-    .select("id, course_id, default_tee_id")
+    .select("id, date, format, course_id, default_tee_id")
     .eq("id", match.round_id)
     .single();
   if (!round?.default_tee_id) return null;
@@ -47,6 +47,12 @@ async function loadScorecardData(): Promise<ScorecardData | null> {
     .eq("id", round.default_tee_id)
     .single();
   if (!tee) return null;
+
+  const { data: course } = await supabase
+    .from("courses")
+    .select("name")
+    .eq("id", round.course_id)
+    .single();
 
   const { data: teams } = await supabase
     .from("teams")
@@ -154,6 +160,9 @@ async function loadScorecardData(): Promise<ScorecardData | null> {
   return {
     matchId: match.id,
     roundId: match.round_id,
+    courseName: course?.name ?? "Unknown course",
+    format: round.format,
+    date: round.date,
     duoA: buildDuo(match.team_a_id, teamAPlayerIds),
     duoB: buildDuo(match.team_b_id, teamBPlayerIds),
     holes,

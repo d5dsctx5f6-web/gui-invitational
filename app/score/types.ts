@@ -41,6 +41,9 @@ export interface ScorecardReverseMulligan {
 export interface ScorecardData {
   matchId: string;
   roundId: string;
+  courseName: string;
+  format: string;
+  date: string;
   duoA: ScorecardDuo;
   duoB: ScorecardDuo;
   holes: ScorecardHoleMeta[];

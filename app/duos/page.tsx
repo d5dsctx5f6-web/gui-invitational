@@ -40,7 +40,7 @@ export default async function DuosPage({
 
   const { data: rounds } = await supabase
     .from("rounds")
-    .select("id, date, format")
+    .select("id, date, format, course_id")
     .order("date");
 
   if (!rounds || rounds.length === 0) {
@@ -55,6 +55,20 @@ export default async function DuosPage({
   }
 
   const round = rounds.find((r) => r.id === roundParam) ?? rounds[0];
+
+  const { data: courses } = await supabase
+    .from("courses")
+    .select("id, name")
+    .in(
+      "id",
+      rounds.map((r) => r.course_id),
+    );
+  const courseName = (courseId: string) =>
+    courses?.find((c) => c.id === courseId)?.name ?? "Unknown course";
+  const formatName = (format: string) =>
+    format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
+  const roundLabel = (r: { course_id: string; format: string }) =>
+    `${courseName(r.course_id)} — ${formatName(r.format)}`;
 
   const [{ data: matches }, { data: teams }, { data: teamMembers }, { data: players }, { data: submissions }] =
     await Promise.all([
@@ -76,7 +90,8 @@ export default async function DuosPage({
         ← Home
       </Link>
       <div className={styles.eyebrow}>
-        Duo submissions · <b>{round.format === "shamble" ? "Shamble" : "Four-ball"} — {round.date}</b>
+        Duo submissions · <b>{roundLabel(round)}</b>
+        <span> · {round.date}</span>
       </div>
       <div className={styles.deadline}>
         Deadline: 30 minutes before {round.date}&apos;s first tee — not hard-blocked after, but
@@ -91,7 +106,7 @@ export default async function DuosPage({
               href={`/duos?round=${r.id}`}
               className={`${styles.roundLink} ${r.id === round.id ? styles.roundLinkActive : ""}`}
             >
-              {r.date}
+              {roundLabel(r)}
             </a>
           ))}
         </div>

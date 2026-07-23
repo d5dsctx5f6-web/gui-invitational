@@ -10,12 +10,22 @@ interface Round {
   id: string;
   date: string;
   format: string;
+  course_id: string;
   skins_buy_in: number | null;
 }
 
 interface Player {
   id: string;
   name: string;
+}
+
+interface Course {
+  id: string;
+  name: string;
+}
+
+function formatName(format: string): string {
+  return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
 }
 
 interface SkinsEntryRow {
@@ -54,6 +64,7 @@ export function MoneyScreen({
   initialHoleScores,
   initialBets,
   currentPlayerId,
+  courses,
 }: {
   rounds: Round[];
   selectedRoundId: string;
@@ -62,6 +73,7 @@ export function MoneyScreen({
   initialHoleScores: HoleScoreRow[];
   initialBets: BetRow[];
   currentPlayerId: string;
+  courses: Course[];
 }) {
   const [skinsEntries, setSkinsEntries] = useState(initialSkinsEntries);
   const [holeScores, setHoleScores] = useState(initialHoleScores);
@@ -145,22 +157,21 @@ export function MoneyScreen({
   const selected = skinsByRound.get(selectedRoundId)!;
   const iAmIn = selected.entrantIds.includes(currentPlayerId);
   const hasBuyIn = selectedRound.skins_buy_in !== null && selectedRound.skins_buy_in > 0;
+  const selectedRoundLabel = `${courses.find((c) => c.id === selectedRound.course_id)?.name ?? "Unknown course"} — ${formatName(selectedRound.format)}`;
 
-  async function toggleSkins() {
+  // Brief 9 Part G: opting in is a deliberate, one-way act — a confirm step gates the write,
+  // and once in there's no player-facing opt-out for this round at all (the toggle from
+  // Brief 7 is gone). Only /admin can undo a mistaken opt-in now.
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  async function confirmOptIn() {
     setBusy(true);
     const supabase = createClient();
-    if (iAmIn) {
-      await supabase
-        .from("skins_entries")
-        .delete()
-        .eq("player_id", currentPlayerId)
-        .eq("round_id", selectedRoundId);
-    } else {
-      await supabase
-        .from("skins_entries")
-        .insert({ player_id: currentPlayerId, round_id: selectedRoundId });
-    }
+    await supabase
+      .from("skins_entries")
+      .insert({ player_id: currentPlayerId, round_id: selectedRoundId });
     setBusy(false);
+    setConfirmOpen(false);
     await refetchSkinsEntries();
   }
 
@@ -172,16 +183,35 @@ export function MoneyScreen({
     <>
       <div className={styles.card}>
         <div className={styles.cardhead}>
-          <h2>Skins — {selectedRound.date}</h2>
+          <h2>Skins — {selectedRoundLabel}</h2>
           <div className={styles.meta}>
             {hasBuyIn ? `$${selectedRound.skins_buy_in}` : "buy-in TBD"} ·{" "}
             {selected.entrantIds.length} in
           </div>
         </div>
 
-        <button className={styles.toggleBtn} disabled={busy} onClick={toggleSkins}>
-          {iAmIn ? "You're in — tap to opt out" : "Opt in to skins"}
-        </button>
+        {iAmIn ? (
+          <div className={styles.lockedBtn}>You&apos;re in — locked for this round</div>
+        ) : confirmOpen ? (
+          <div className={styles.confirmBox}>
+            <div className={styles.hint}>
+              Opt into gross skins for {selectedRoundLabel}? Once you&apos;re in, you can&apos;t
+              opt back out this round.
+            </div>
+            <div className={styles.confirmActions}>
+              <button className={styles.smallBtn} onClick={() => setConfirmOpen(false)}>
+                Cancel
+              </button>
+              <button className={styles.toggleBtn} disabled={busy} onClick={confirmOptIn}>
+                {busy ? "…" : "Confirm — I'm in"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className={styles.toggleBtn} onClick={() => setConfirmOpen(true)}>
+            Opt in to skins
+          </button>
+        )}
         <div className={styles.hint}>
           Opt in before this round&apos;s first tee — not hard-blocked after
         </div>
