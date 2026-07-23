@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 22, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening) and Brief 10 (score routing fix) both built and pushed on top of it. Outstanding: Brief 7's live two-device gate and Brief 9's own live verification, both independent and can happen on their own schedule — read this first before resuming.
+**Last updated:** July 23, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening), Brief 10 (score routing fix), and Brief 11 (RM visibility investigation, no code defect found) all built and pushed on top of it. Outstanding: Brief 7's live two-device gate and Brief 9's own live verification, both independent and can happen on their own schedule — read this first before resuming.
 
 ---
 
@@ -18,6 +18,7 @@
 - **Brief 8 (M3 Part 3) — CLOSED, closes M3**: `/schedule` — read-only, grouped by day, pulling from `schedule_items` (stubbed since Brief 2, unused until now). `/champions` — loops over every `seasons` row, three trophy lines each (Cup, Low Man, Skins King), independently "— in play —" until admin records a winner; admin-recorded at trip's end rather than derived live, a deliberate scope choice (deriving would mean building the trip-wide standings screen this project has never had a UI for). New admin sections for both. Migration `0020` adds the three nullable trophy columns to `seasons`. Caught and fixed the same class of regression as Brief 7 before close: `/champions`' first draft queried the not-yet-migrated trophy columns in the same call as the core season fields, which would have hidden Year One entirely on a pre-migration database — fixed with the by-now-standard decoupled-fetch pattern. See `SESSION_ADDENDUM_BRIEF8.md`.
 - **Brief 9 (admin & UX hardening) — code complete and pushed, live gate pending**: admin delete for courses/rounds/teams/matches/challenge bets, dependency-aware confirmations backed by real `ON DELETE CASCADE` FKs (migration `0021`) rather than manual multi-step deletes. Rounds now display as "Course — Format" everywhere. Home page's primary actions are bigger and moved above the roster; back-links and the roster picker got real touch targets. The actual bug fix: admin never had a reverse-mulligan removal capability at all — built one, and it correctly clears the affected hole's stale `match_strokes` on removal, not just the event row. Scorecard now shows a course/format/date header. Skins opt-in is a confirm-then-lock one-way door for players, with an admin override to remove a mistaken entry. See `SESSION_ADDENDUM_BRIEF9.md`.
 - **Brief 10 (score routing fix) — CLOSED**: `/score` no longer grabs "the first match in the table" — it derives the signed-in player's actual match from identity (`team_members` → `matches` → the specific slot via `duo_submissions`, since a team pairing is *two* match rows sharing the same team IDs, not one — team membership alone can't tell them apart). Verified by hand-tracing the real production data for the exact scenario that surfaced the bug (Zac Jones landing on the wrong matchup) plus a cross-check on an unrelated matchup and a same-foursome grouping check for the Brief 7 realtime gate — all three traced correctly. See `SESSION_ADDENDUM_BRIEF10.md`.
+- **Brief 11 (RM visibility investigation) — CLOSED, no code defect found**: investigated the suspected "reverse mulligan calling only visible to team captains" regression. Full audit of `Scorecard.tsx`, `/score/page.tsx`, and every relevant RLS policy found no captain-based check anywhere — RM calling rights are already scoped to "either real player in the duo playing this match," exactly matching Rulebook v1.6 §5. Hand-traced 3 real non-captain players against live production data (including Team Jones' own captain's duo-B *player-2* slot, ruling out a subtler "first-listed player only" bug too) — all resolve and gain calling rights correctly. Added a clarifying comment at the check site to head off a future accidental regression via the (correctly) captain-scoped `duo_submissions` write policies. See `SESSION_ADDENDUM_BRIEF11.md`.
 
 ## M2 status: CLOSED
 
@@ -124,6 +125,14 @@ identity-squatting reasons as every prior brief) — Zac Jones resolves correctl
 matchup, Matt Lacko resolves independently to a different one regardless of row order, and all
 four players sharing one foursome resolve to the same match, confirming Brief 7's realtime gate
 still works. See `SESSION_ADDENDUM_BRIEF10.md`.
+
+## Brief 11 (RM visibility investigation) status: CLOSED
+
+No regression found. See the Shipped & pushed entry above and `SESSION_ADDENDUM_BRIEF11.md` for
+the full diagnostic trail. Best-guess explanation for why the concern was raised: Chris, like
+every session in this project, can only personally PIN-sign-in as himself for live testing (a
+team captain) per the identity-squatting-avoidance policy — natural grounds for suspicion without
+having traced the code against another real player's data, which this brief did.
 
 ## Two must-do items now closed (were carried-forward before M3)
 
