@@ -5,13 +5,17 @@ import {
   correctHoleScore,
   createCourse,
   createRound,
+  createScheduleItem,
   createTeam,
   deleteMatch,
+  deleteScheduleItem,
   reassignChallengeBetWinner,
   removeTeamMember,
   resetPlayerPin,
+  setSeasonTrophies,
   setSkinsBuyIn,
   updatePlayerIndex,
+  updateScheduleItem,
   updateTeam,
   upsertCourseTee,
   upsertMatch,
@@ -88,24 +92,54 @@ interface ChallengeBet {
   status: string;
   winner_player_id: string | null;
 }
+interface Season {
+  id: string;
+  year: number;
+  name: string;
+  cup_winner_team_id: string | null;
+  individual_champion_player_id: string | null;
+  skins_king_player_id: string | null;
+}
+interface ScheduleItem {
+  id: string;
+  season_id: string;
+  title: string;
+  starts_at: string | null;
+  notes: string | null;
+}
 
 async function loadAdminData() {
   const supabase = await createClient();
-  const [players, teams, teamMembers, rounds, matches, courses, courseTees, challengeBets] =
-    await Promise.all([
-      supabase.from("players").select("id, name, index").order("name"),
-      supabase.from("teams").select("id, name, captain_player_id").order("name"),
-      supabase.from("team_members").select("team_id, player_id"),
-      supabase.from("rounds").select("id, date, format, course_id, default_tee_id").order("date"),
-      supabase.from("matches").select("id, round_id, team_a_id, team_b_id, slot"),
-      supabase.from("courses").select("id, name").order("name"),
-      supabase
-        .from("course_tees")
-        .select("id, course_id, tee_name, rating, slope, par, stroke_index, par_by_hole, yardage_by_hole"),
-      supabase
-        .from("challenge_bets")
-        .select("id, proposer_id, acceptor_id, terms, stake, status, winner_player_id"),
-    ]);
+  const [
+    players,
+    teams,
+    teamMembers,
+    rounds,
+    matches,
+    courses,
+    courseTees,
+    challengeBets,
+    seasonsCore,
+    scheduleItems,
+  ] = await Promise.all([
+    supabase.from("players").select("id, name, index").order("name"),
+    supabase.from("teams").select("id, name, captain_player_id").order("name"),
+    supabase.from("team_members").select("team_id, player_id"),
+    supabase.from("rounds").select("id, date, format, course_id, default_tee_id").order("date"),
+    supabase.from("matches").select("id, round_id, team_a_id, team_b_id, slot"),
+    supabase.from("courses").select("id, name").order("name"),
+    supabase
+      .from("course_tees")
+      .select("id, course_id, tee_name, rating, slope, par, stroke_index, par_by_hole, yardage_by_hole"),
+    supabase
+      .from("challenge_bets")
+      .select("id, proposer_id, acceptor_id, terms, stake, status, winner_player_id"),
+    supabase.from("seasons").select("id, year, name").order("year", { ascending: false }),
+    supabase
+      .from("schedule_items")
+      .select("id, season_id, title, starts_at, notes")
+      .order("starts_at", { ascending: true, nullsFirst: false }),
+  ]);
 
   // Fetched separately from the core round fields above: if 0019 (skins_buy_in) hasn't run
   // yet on this database, this query alone fails and falls back to "unset" everywhere —
@@ -120,6 +154,29 @@ async function loadAdminData() {
     skins_buy_in: buyInByRoundId.get(r.id) ?? null,
   })) as Round[];
 
+  // Same reasoning as skins_buy_in above: fetched separately so a database that hasn't run
+  // 0020 (the trophy columns) yet still shows the rest of the season list intact.
+  const { data: trophies } = await supabase
+    .from("seasons")
+    .select("id, cup_winner_team_id, individual_champion_player_id, skins_king_player_id");
+  const trophiesBySeasonId = new Map(
+    (trophies ?? []).map((t) => [
+      t.id,
+      {
+        cup_winner_team_id: t.cup_winner_team_id,
+        individual_champion_player_id: t.individual_champion_player_id,
+        skins_king_player_id: t.skins_king_player_id,
+      },
+    ]),
+  );
+  const seasonsList = (seasonsCore.data ?? []).map((s) => ({
+    ...s,
+    cup_winner_team_id: trophiesBySeasonId.get(s.id)?.cup_winner_team_id ?? null,
+    individual_champion_player_id:
+      trophiesBySeasonId.get(s.id)?.individual_champion_player_id ?? null,
+    skins_king_player_id: trophiesBySeasonId.get(s.id)?.skins_king_player_id ?? null,
+  })) as Season[];
+
   return {
     players: (players.data ?? []) as Player[],
     teams: (teams.data ?? []) as Team[],
@@ -129,6 +186,8 @@ async function loadAdminData() {
     courses: (courses.data ?? []) as Course[],
     courseTees: (courseTees.data ?? []) as CourseTee[],
     challengeBets: (challengeBets.data ?? []) as ChallengeBet[],
+    seasons: seasonsList,
+    scheduleItems: (scheduleItems.data ?? []) as ScheduleItem[],
   };
 }
 
@@ -175,12 +234,29 @@ export default async function AdminPage({
     );
   }
 
-  const { players, teams, teamMembers, rounds, matches, courses, courseTees, challengeBets } =
-    await loadAdminData();
+  const {
+    players,
+    teams,
+    teamMembers,
+    rounds,
+    matches,
+    courses,
+    courseTees,
+    challengeBets,
+    seasons,
+    scheduleItems,
+  } = await loadAdminData();
   const selectedRoundId = params.round ?? rounds[0]?.id;
   const holeScores = await loadHoleScores(selectedRoundId);
 
   const playerName = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
+
+  function toDatetimeLocal(value: string | null): string {
+    if (!value) return "";
+    const d = new Date(value);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
 
   return (
     <main className={styles.page}>
@@ -539,6 +615,123 @@ export default async function AdminPage({
               )}
             </div>
           </div>
+        ))}
+      </section>
+
+      {/* ---------------- Schedule ---------------- */}
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}>Schedule</div>
+        {scheduleItems.length === 0 && (
+          <div className={styles.hint}>No schedule items yet.</div>
+        )}
+        {scheduleItems.map((item) => (
+          <div key={item.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
+            <form action={updateScheduleItem} className={styles.inlineForm}>
+              <input type="hidden" name="id" value={item.id} />
+              <input className={styles.input} name="title" defaultValue={item.title} style={{ width: 160 }} />
+              <input
+                className={styles.input}
+                type="datetime-local"
+                name="startsAt"
+                defaultValue={toDatetimeLocal(item.starts_at)}
+              />
+              <input
+                className={styles.input}
+                name="notes"
+                defaultValue={item.notes ?? ""}
+                placeholder="Notes"
+                style={{ width: 160 }}
+              />
+              <button className={styles.btn} type="submit">
+                Save
+              </button>
+            </form>
+            <form action={deleteScheduleItem}>
+              <input type="hidden" name="id" value={item.id} />
+              <button className={styles.btnDanger} type="submit">
+                Remove
+              </button>
+            </form>
+          </div>
+        ))}
+
+        <div className={styles.hint}>Add a schedule item:</div>
+        <form action={createScheduleItem} className={styles.inlineForm}>
+          <select className={styles.select} name="seasonId" defaultValue={seasons[0]?.id ?? ""}>
+            {seasons.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <input className={styles.input} name="title" placeholder="Title" style={{ width: 160 }} />
+          <input className={styles.input} type="datetime-local" name="startsAt" />
+          <input className={styles.input} name="notes" placeholder="Notes (optional)" style={{ width: 160 }} />
+          <button className={styles.btn} type="submit">
+            Add item
+          </button>
+        </form>
+      </section>
+
+      {/* ---------------- Champions wall ---------------- */}
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}>Champions wall</div>
+        {seasons.map((season) => (
+          <form
+            key={season.id}
+            action={setSeasonTrophies}
+            className={styles.row}
+            style={{ flexDirection: "column", alignItems: "stretch" }}
+          >
+            <input type="hidden" name="seasonId" value={season.id} />
+            <div className={styles.hint}>
+              <b style={{ color: "var(--cream)" }}>{season.name}</b>
+            </div>
+            <div className={styles.inlineForm}>
+              <span className={styles.hint}>The Cup:</span>
+              <select className={styles.select} name="cupWinnerTeamId" defaultValue={season.cup_winner_team_id ?? ""}>
+                <option value="">— in play —</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.inlineForm}>
+              <span className={styles.hint}>Low Man:</span>
+              <select
+                className={styles.select}
+                name="individualChampionPlayerId"
+                defaultValue={season.individual_champion_player_id ?? ""}
+              >
+                <option value="">— in play —</option>
+                {players.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.inlineForm}>
+              <span className={styles.hint}>Skins King:</span>
+              <select
+                className={styles.select}
+                name="skinsKingPlayerId"
+                defaultValue={season.skins_king_player_id ?? ""}
+              >
+                <option value="">— in play —</option>
+                {players.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button className={styles.btn} type="submit">
+              Save
+            </button>
+          </form>
         ))}
       </section>
     </main>

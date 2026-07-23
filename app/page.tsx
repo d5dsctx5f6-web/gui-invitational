@@ -32,6 +32,12 @@ export default async function Home() {
         <Link href="/money" className={styles.navLink}>
           Money
         </Link>
+        <Link href="/schedule" className={styles.navLink}>
+          Schedule
+        </Link>
+        <Link href="/champions" className={styles.navLink}>
+          Champions wall
+        </Link>
       </div>
 
       <footer className={styles.footer}>

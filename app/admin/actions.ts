@@ -369,3 +369,94 @@ export async function reassignChallengeBetWinner(formData: FormData) {
   revalidatePath("/money");
   flash("Challenge bet winner reassigned");
 }
+
+// ---------------------------------------------------------------------------
+// Schedule items (Brief 8 Part B) — admin-authored content, no player-facing editing.
+// ---------------------------------------------------------------------------
+
+export async function createScheduleItem(formData: FormData) {
+  await requireAdmin();
+  const seasonId = String(formData.get("seasonId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const startsAtRaw = String(formData.get("startsAt") ?? "").trim();
+  const notesRaw = String(formData.get("notes") ?? "").trim();
+  if (!seasonId || !title) flashError("Season and title are required");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("schedule_items").insert({
+    season_id: seasonId,
+    title,
+    starts_at: startsAtRaw === "" ? null : new Date(startsAtRaw).toISOString(),
+    notes: notesRaw === "" ? null : notesRaw,
+  });
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/schedule");
+  flash(`"${title}" added to the schedule`);
+}
+
+export async function updateScheduleItem(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+  const title = String(formData.get("title") ?? "").trim();
+  const startsAtRaw = String(formData.get("startsAt") ?? "").trim();
+  const notesRaw = String(formData.get("notes") ?? "").trim();
+  if (!title) flashError("Title is required");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("schedule_items")
+    .update({
+      title,
+      starts_at: startsAtRaw === "" ? null : new Date(startsAtRaw).toISOString(),
+      notes: notesRaw === "" ? null : notesRaw,
+    })
+    .eq("id", id);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/schedule");
+  flash("Schedule item updated");
+}
+
+export async function deleteScheduleItem(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("schedule_items").delete().eq("id", id);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/schedule");
+  flash("Schedule item removed");
+}
+
+// ---------------------------------------------------------------------------
+// Champions wall (Brief 8 Part C) — a simple trip-end close-out, not derived live.
+// ---------------------------------------------------------------------------
+
+export async function setSeasonTrophies(formData: FormData) {
+  await requireAdmin();
+  const seasonId = String(formData.get("seasonId"));
+  const cupWinnerTeamId = String(formData.get("cupWinnerTeamId") ?? "") || null;
+  const individualChampionPlayerId =
+    String(formData.get("individualChampionPlayerId") ?? "") || null;
+  const skinsKingPlayerId = String(formData.get("skinsKingPlayerId") ?? "") || null;
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("seasons")
+    .update({
+      cup_winner_team_id: cupWinnerTeamId,
+      individual_champion_player_id: individualChampionPlayerId,
+      skins_king_player_id: skinsKingPlayerId,
+    })
+    .eq("id", seasonId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/champions");
+  flash("Champions wall updated");
+}

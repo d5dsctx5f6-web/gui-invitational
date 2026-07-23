@@ -20,9 +20,10 @@ panel (never exposed to the client) for corrections and setup writes.
 | `reverse_mulligans` | `0008` (stub), writes in `0018` | Reverse mulligan (team weapon) — one row per call, `team_id` is the calling team |
 | `skins_entries` | `0008` (stub), writes in `0018` | Money — gross skins, opt-in — a player's own toggle |
 | `challenge_bets` | `0008` (stub), writes in `0018` | Money — Challenge Ledger — proposer/acceptor scoped writes |
-| `schedule_items` | `0008` (stub) | Beyond scoring — schedule/itinerary, including the Friday fun round — still stub, Brief 8 |
+| `schedule_items` | `0008` (stub), read screen in Brief 8 | Beyond scoring — schedule/itinerary, including the Friday fun round |
 | `player_auth` / `player_devices` | `0013` | Player access (the PIN model) — no accounts, no email; rides on Supabase Auth anonymous sign-in so RLS can be genuinely identity-aware. `pin_hash` is never selectable directly, only via the `set_player_pin`/`verify_and_link_pin` SECURITY DEFINER functions |
 | `rounds.skins_buy_in` | `0019` | Money — nullable per-round buy-in; null means the Money screen shows skin counts, not dollars, per SPEC §6's "never hard-block on a pending input" |
+| `seasons.cup_winner_team_id` / `.individual_champion_player_id` / `.skins_king_player_id` | `0020` | §3 champions wall — each trophy independently nullable ("— in play —" until admin records a winner), admin-recorded at trip's end rather than derived live |
 
 ## Writes since Brief 6
 
