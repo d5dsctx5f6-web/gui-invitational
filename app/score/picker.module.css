@@ -1,0 +1,45 @@
+.page {
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 24px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--tile2);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: block;
+  background: var(--board2);
+  border: 2px solid var(--seam);
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.itemTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cream);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.itemMeta {
+  font-size: 11px;
+  color: var(--tile2);
+  margin-top: 4px;
+}
