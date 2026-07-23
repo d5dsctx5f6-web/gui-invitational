@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 22, 2026 · **Status:** M3 is closed — all three parts built and pushed. The only thing outstanding is Brief 7's live two-device gate, which is independent of everything since and can be verified on its own — read this first before resuming.
+**Last updated:** July 22, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening) built and pushed on top of it. Outstanding: Brief 7's live two-device gate and Brief 9's own live verification, both independent and can happen on their own schedule — read this first before resuming.
 
 ---
 
@@ -16,6 +16,7 @@
 - **Brief 7 (M3 Part 2) — code complete and pushed, migrations run and confirmed, live gate still pending**: realtime subscriptions (`hole_scores`, `reverse_mulligans`, `duo_submissions`, `skins_entries`, `challenge_bets`) with focus/visibility-regain refetch for backgrounded phones. `/duos` — blind duo submissions, blindness enforced structurally (no draft row exists until a captain's single atomic commit). `/money` — skins opt-in with live `computeSkins()` results, and the Challenge Ledger (log/accept/settle, admin void/reassign). Reverse-mulligan calling UI + two-score capture built into the Scorecard. Engine gained `moneyLedger.ts` (skins payouts + trip-wide running ledger); 84 tests total, all green. See `SESSION_ADDENDUM_BRIEF7.md`.
 - **Brief 7.5 (punch-list) — CLOSED**: a `← Home` link added everywhere it was missing — turned out to be `/duos`, `/money`, `/score`'s two early-return states, and both of `/admin`'s (the gap wasn't only `/duos`/`/money` as first flagged). Admin can now reset a player's PIN (clears `player_auth` + every `player_devices` link for them), closing the gap flagged in Brief 7's addendum before broad live testing starts. See `SESSION_ADDENDUM_BRIEF7_5.md`.
 - **Brief 8 (M3 Part 3) — CLOSED, closes M3**: `/schedule` — read-only, grouped by day, pulling from `schedule_items` (stubbed since Brief 2, unused until now). `/champions` — loops over every `seasons` row, three trophy lines each (Cup, Low Man, Skins King), independently "— in play —" until admin records a winner; admin-recorded at trip's end rather than derived live, a deliberate scope choice (deriving would mean building the trip-wide standings screen this project has never had a UI for). New admin sections for both. Migration `0020` adds the three nullable trophy columns to `seasons`. Caught and fixed the same class of regression as Brief 7 before close: `/champions`' first draft queried the not-yet-migrated trophy columns in the same call as the core season fields, which would have hidden Year One entirely on a pre-migration database — fixed with the by-now-standard decoupled-fetch pattern. See `SESSION_ADDENDUM_BRIEF8.md`.
+- **Brief 9 (admin & UX hardening) — code complete and pushed, live gate pending**: admin delete for courses/rounds/teams/matches/challenge bets, dependency-aware confirmations backed by real `ON DELETE CASCADE` FKs (migration `0021`) rather than manual multi-step deletes. Rounds now display as "Course — Format" everywhere. Home page's primary actions are bigger and moved above the roster; back-links and the roster picker got real touch targets. The actual bug fix: admin never had a reverse-mulligan removal capability at all — built one, and it correctly clears the affected hole's stale `match_strokes` on removal, not just the event row. Scorecard now shows a course/format/date header. Skins opt-in is a confirm-then-lock one-way door for players, with an admin override to remove a mistaken entry. See `SESSION_ADDENDUM_BRIEF9.md`.
 
 ## M2 status: CLOSED
 
@@ -85,6 +86,31 @@ All three parts are built and pushed. The **only** thing left from the entire M3
 reveal, a skins/ledger cycle, and an RM call, all confirmed on two real devices. That
 verification is independent of Briefs 7.5 and 8 and can happen on its own schedule.
 
+## Brief 9 (admin & UX hardening) status: CODE DONE, LIVE GATE PENDING
+
+Not a milestone — a punch-list pass from Chris actually living in `/admin`. Everything is built
+and pushed; migration `0021` (the delete cascades) hasn't run yet. See
+`SESSION_ADDENDUM_BRIEF9.md` for full detail, including the FK schema decisions (two deliberate
+`SET NULL`s instead of cascading further: a round's optional default tee, and a season's
+recorded cup-winner team so deleting a team never rewrites champions-wall history).
+
+**Honestly could not verify this session:** any admin write actually succeeding against the
+live database — this local dev environment's `SUPABASE_SERVICE_ROLE_KEY` has always been a
+placeholder (since Brief 6), so every admin action, not just this brief's new ones, has only
+ever been write-verifiable in Chris's real environment. Did click-test the new reverse-mulligan
+removal against a real row from earlier testing: the confirm gate and the Server Action both
+fired correctly, and it failed cleanly with "Invalid API key" (the expected placeholder-key
+failure, not a code bug) — no orphaned state, no crash, surfaced through the normal error
+banner. Confirms the plumbing; the actual successful write is Chris's to run live.
+
+**Still pending — this brief's own gate:**
+1. Run migration `0021` in the Supabase SQL editor.
+2. Delete a course/round/team/match/challenge bet with real dependents — confirm the message
+   and the cascade.
+3. Call and then remove a reverse mulligan — confirm the scorecard reverts to the real score.
+4. Confirm skins opt-in's confirm-then-lock on a phone, and admin's override.
+5. Eyeball the bigger nav/back-links/roster targets on an actual phone in daylight.
+
 ## Two must-do items now closed (were carried-forward before M3)
 
 1. ~~Revoke the interim anon INSERT/UPDATE policies on `hole_scores`~~ — done in migration `0014`.
@@ -96,8 +122,8 @@ Reconcile ARCHITECTURE §5 with the schema actually built (`course_tees` split, 
 
 ## Next up
 
-**M4 — the dress rehearsal** (per BUILD_PLAN): one fully simulated trip day with 3+ humans on
-their own phones, admin setup through settle-up, end to end, on production infrastructure. Also
-the natural home for a UX/polish pass, driven by real multi-human usage rather than more guesses
-made solo. Brief 7's live two-device gate (above) can happen before, during, or independently of
-kicking that off.
+Finish the two pending live gates above (Brief 7's two-device realtime gate, Brief 9's
+delete/RM-removal/skins-lock verification) whenever convenient — both independent of each
+other. Then, per BUILD_PLAN: **M4 — the dress rehearsal**, one fully simulated trip day with
+3+ humans on their own phones, admin setup through settle-up, end to end, on production
+infrastructure.
