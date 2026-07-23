@@ -196,6 +196,11 @@ export function Scorecard({
     );
   }
 
+  // Brief 11: RM calling rights belong to the team, exercised by either real player in the
+  // calling duo for this match — never gated on captaincy (Rulebook v1.6 §5, "either duo can
+  // burn it"). Don't narrow this to duo_a_player_1/duo_b_player_1 or to teams.captain_player_id
+  // by analogy with duo_submissions' write policies, which ARE correctly captain-scoped for a
+  // different reason (only the captain may submit picks) — that scoping doesn't apply here.
   const isDuoA = currentPlayerId !== null && data.duoA.players.some((p) => p.id === currentPlayerId);
   const isDuoB = currentPlayerId !== null && data.duoB.players.some((p) => p.id === currentPlayerId);
   const callingTeamId = isDuoA ? data.duoA.teamId : isDuoB ? data.duoB.teamId : null;
