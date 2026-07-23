@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 21, 2026 · **Status:** Brief 7 / M3 Part 2 migrations run and confirmed; live two-device gate still pending — read this first before resuming.
+**Last updated:** July 22, 2026 · **Status:** Brief 7.5 punch-list closed; Brief 7 / M3 Part 2 live two-device gate still pending — read this first before resuming.
 
 ---
 
@@ -14,6 +14,7 @@
 - **Scorecard fixes** — success/error write feedback, "already posted" indicator, running gross/net totals per player.
 - **Brief 6 (M3 Part 1) — CLOSED, verified live**: the two carried-forward items closed (`reverse_mulligans` unique constraint; `hole_scores` interim anon-write revoked and replaced with an identity-scoped policy). Real player identity (name + 4-digit PIN, riding on Supabase Auth anonymous sign-in) and a passcode-gated `/admin` panel (teams, matchups, indexes, course setups, and the key one — corrections that ripple downstream with no redeploy). Verified live on Chris's phone: PIN sign-in works and persists, admin passcode gate works, a live score correction and a mulligan toggle both rippled through to the scorecard in real time with no redeploy. Three bugs were caught and fixed mid-verification: a sign-in dead-end (`092268c`), an anon-only-read RLS regression that silently emptied every table for any signed-in device (`d5a2882`), and a pgcrypto search_path gap that broke PIN-setting (`1535863`). See `SESSION_ADDENDUM_BRIEF6_CLOSED.md`.
 - **Brief 7 (M3 Part 2) — code complete and pushed, migrations run and confirmed, live gate still pending**: realtime subscriptions (`hole_scores`, `reverse_mulligans`, `duo_submissions`, `skins_entries`, `challenge_bets`) with focus/visibility-regain refetch for backgrounded phones. `/duos` — blind duo submissions, blindness enforced structurally (no draft row exists until a captain's single atomic commit). `/money` — skins opt-in with live `computeSkins()` results, and the Challenge Ledger (log/accept/settle, admin void/reassign). Reverse-mulligan calling UI + two-score capture built into the Scorecard. Engine gained `moneyLedger.ts` (skins payouts + trip-wide running ledger); 84 tests total, all green. See `SESSION_ADDENDUM_BRIEF7.md`.
+- **Brief 7.5 (punch-list) — CLOSED**: a `← Home` link added everywhere it was missing — turned out to be `/duos`, `/money`, `/score`'s two early-return states, and both of `/admin`'s (the gap wasn't only `/duos`/`/money` as first flagged). Admin can now reset a player's PIN (clears `player_auth` + every `player_devices` link for them), closing the gap flagged in Brief 7's addendum before broad live testing starts. See `SESSION_ADDENDUM_BRIEF7_5.md`.
 
 ## M2 status: CLOSED
 
@@ -62,7 +63,7 @@ section on the live (not-yet-migrated) database — fixed by decoupling the fetc
 **Open items, minor, not blocking:**
 - No `first_tee_at` field in the schema — the 30-minutes-before-first-tee deadline is a static
   label, not a real countdown.
-- No admin "reset a player's PIN" capability — worth adding before broad live testing.
+- ~~No admin "reset a player's PIN" capability~~ — closed by Brief 7.5.
 - `/score` still hardcodes "grab the first match in the table" — fine for the realtime gate
   test (wants two devices on the *same* match) but will need a real match picker before four
   simultaneous foursomes each need their own live scorecard on trip day.
