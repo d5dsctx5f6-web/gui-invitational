@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 23, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening), Brief 10 (score routing fix), and Brief 11 (RM visibility investigation, no code defect found) all built and pushed on top of it. Outstanding: Brief 7's live two-device gate and Brief 9's own live verification, both independent and can happen on their own schedule — read this first before resuming.
+**Last updated:** July 23, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening), Brief 10 (score routing fix), Brief 11 (RM visibility investigation, no code defect found), and Brief 12 (PIN modal + duo A/B slot picker) all built and pushed on top of it. Outstanding: Brief 7's live two-device gate, Brief 9's own live verification, and Chris's own live click-through of the new duo slot picker as a real captain — all independent and can happen on their own schedule — read this first before resuming.
 
 ---
 
@@ -19,6 +19,7 @@
 - **Brief 9 (admin & UX hardening) — code complete and pushed, live gate pending**: admin delete for courses/rounds/teams/matches/challenge bets, dependency-aware confirmations backed by real `ON DELETE CASCADE` FKs (migration `0021`) rather than manual multi-step deletes. Rounds now display as "Course — Format" everywhere. Home page's primary actions are bigger and moved above the roster; back-links and the roster picker got real touch targets. The actual bug fix: admin never had a reverse-mulligan removal capability at all — built one, and it correctly clears the affected hole's stale `match_strokes` on removal, not just the event row. Scorecard now shows a course/format/date header. Skins opt-in is a confirm-then-lock one-way door for players, with an admin override to remove a mistaken entry. See `SESSION_ADDENDUM_BRIEF9.md`.
 - **Brief 10 (score routing fix) — CLOSED**: `/score` no longer grabs "the first match in the table" — it derives the signed-in player's actual match from identity (`team_members` → `matches` → the specific slot via `duo_submissions`, since a team pairing is *two* match rows sharing the same team IDs, not one — team membership alone can't tell them apart). Verified by hand-tracing the real production data for the exact scenario that surfaced the bug (Zac Jones landing on the wrong matchup) plus a cross-check on an unrelated matchup and a same-foursome grouping check for the Brief 7 realtime gate — all three traced correctly. See `SESSION_ADDENDUM_BRIEF10.md`.
 - **Brief 11 (RM visibility investigation) — CLOSED, no code defect found**: investigated the suspected "reverse mulligan calling only visible to team captains" regression. Full audit of `Scorecard.tsx`, `/score/page.tsx`, and every relevant RLS policy found no captain-based check anywhere — RM calling rights are already scoped to "either real player in the duo playing this match," exactly matching Rulebook v1.6 §5. Hand-traced 3 real non-captain players against live production data (including Team Jones' own captain's duo-B *player-2* slot, ruling out a subtler "first-listed player only" bug too) — all resolve and gain calling rights correctly. Added a clarifying comment at the check site to head off a future accidental regression via the (correctly) captain-scoped `duo_submissions` write policies. See `SESSION_ADDENDUM_BRIEF11.md`.
+- **Brief 12 (PIN modal + duo A/B selection) — CLOSED**: sign-in is now a bottom-sheet modal (mockup's `.sheet`/`.sheetback` pattern) instead of a full-page takeover — new `SignInModal`/`SignInGate`, triggered from the home roster and from signed-out gates on `/score`/`/duos`/`/money`. The real fix underneath: `submitPin()` used to hard-navigate via `window.location.href`; it now calls `router.refresh()`, so success closes the modal in place with no reload and no `redirectTo` plumbing needed. Duo A/B selection in `/duos` no longer cycles a tapped player through off→A→B→off on repeat taps — replaced with four explicit slots (two per duo), each an empty "+ Add player" or a filled chip with a `×` to remove; tapping an empty slot opens a picker of only the not-yet-placed roster. Verified live for the modal (real triggers, no PIN submitted); the duo picker was verified against a temporary local-only QA route with fake data (never touching a real player identity), deleted before commit. See `SESSION_ADDENDUM_BRIEF12.md`.
 
 ## M2 status: CLOSED
 
@@ -133,6 +134,17 @@ the full diagnostic trail. Best-guess explanation for why the concern was raised
 every session in this project, can only personally PIN-sign-in as himself for live testing (a
 team captain) per the identity-squatting-avoidance policy — natural grounds for suspicion without
 having traced the code against another real player's data, which this brief did.
+
+## Brief 12 (PIN modal + duo A/B selection) status: CLOSED, ONE LIVE ITEM PENDING
+
+Both punch-list items from Chris are built, verified (build/lint/84 tests, live smoke test of the
+modal, fake-data QA pass on the duo picker), and pushed. See `SESSION_ADDENDUM_BRIEF12.md`.
+
+**Still pending:** Chris clicking through the new duo A/B slot picker himself as a real team
+captain — this session could not, since `CaptainForm` is only reachable signed in as an actual
+captain, and completing a real PIN sign-in as any of the 16 players is the one thing this project
+has consistently avoided throughout. Low risk (verified thoroughly against the real component
+with fake data instead), but worth a quick real check before or during M4.
 
 ## Two must-do items now closed (were carried-forward before M3)
 
