@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 23, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening), Brief 10 (score routing fix), Brief 11 (RM visibility investigation, no code defect found), Brief 12 (PIN modal + duo A/B slot picker), and Brief 13 (duo resubmission fix + admin duo view/set/reset) all built and pushed on top of it. Outstanding: Brief 7's live two-device gate, Brief 9's own live verification, Chris's own live click-through of the duo slot picker as a real captain, and confirming the resubmission-before-reveal assumption from Brief 13 — all independent and can happen on their own schedule — read this first before resuming.
+**Last updated:** July 24, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening), Brief 10 (score routing fix), Brief 11 (RM visibility investigation, no code defect found), Brief 12 (PIN modal + duo A/B slot picker), Brief 13 (duo resubmission fix + admin duo view/set/reset), and Brief 14 (the live leaderboard — a new core screen) all built and pushed on top of it. Outstanding: Brief 7's live two-device gate (now also covers `/leaderboard`'s realtime), Brief 9's own live verification, Chris's own live click-through of the duo slot picker as a real captain, and confirming the resubmission-before-reveal assumption from Brief 13 — all independent and can happen on their own schedule — read this first before resuming.
 
 ---
 
@@ -21,6 +21,7 @@
 - **Brief 11 (RM visibility investigation) — CLOSED, no code defect found**: investigated the suspected "reverse mulligan calling only visible to team captains" regression. Full audit of `Scorecard.tsx`, `/score/page.tsx`, and every relevant RLS policy found no captain-based check anywhere — RM calling rights are already scoped to "either real player in the duo playing this match," exactly matching Rulebook v1.6 §5. Hand-traced 3 real non-captain players against live production data (including Team Jones' own captain's duo-B *player-2* slot, ruling out a subtler "first-listed player only" bug too) — all resolve and gain calling rights correctly. Added a clarifying comment at the check site to head off a future accidental regression via the (correctly) captain-scoped `duo_submissions` write policies. See `SESSION_ADDENDUM_BRIEF11.md`.
 - **Brief 12 (PIN modal + duo A/B selection) — CLOSED**: sign-in is now a bottom-sheet modal (mockup's `.sheet`/`.sheetback` pattern) instead of a full-page takeover — new `SignInModal`/`SignInGate`, triggered from the home roster and from signed-out gates on `/score`/`/duos`/`/money`. The real fix underneath: `submitPin()` used to hard-navigate via `window.location.href`; it now calls `router.refresh()`, so success closes the modal in place with no reload and no `redirectTo` plumbing needed. Duo A/B selection in `/duos` no longer cycles a tapped player through off→A→B→off on repeat taps — replaced with four explicit slots (two per duo), each an empty "+ Add player" or a filled chip with a `×` to remove; tapping an empty slot opens a picker of only the not-yet-placed roster. Verified live for the modal (real triggers, no PIN submitted); the duo picker was verified against a temporary local-only QA route with fake data (never touching a real player identity), deleted before commit. See `SESSION_ADDENDUM_BRIEF12.md`.
 - **Brief 13 (duo resubmission fix + admin override) — CLOSED**: diagnosed Chris's "stale duo picks" report and found the write path (`upsert` on `(round_id, team_id)`) has been correct since Brief 7 — confirmed zero duplicate rows in production. The real bug: `TeamStatusRow` stopped rendering `CaptainForm` the instant any submission existed, so a captain had no way back into the form to fix a mistake — not a failed write, an unreachable one. Fixed by letting the captain (never teammates) keep seeing the form pre-reveal regardless of submitted status, pre-filled from the existing picks, with a success message and an "Update duos" label once resubmitting. Also built the missing admin capability PRODUCT_SPEC §3 calls for: a new "Duo submissions" section in `/admin` showing every team's lineup per round (deliberately exempt from the blind-reveal rule — a commissioner override), direct set/edit via roster dropdowns, and a reset action. See `SESSION_ADDENDUM_BRIEF13.md`.
+- **Brief 14 (the live leaderboard) — CLOSED**: a new `/leaderboard` screen — there had never been one in the real app despite the engine computing team standings and the individual net race correctly since Brief 5. Computes every match's `TeamMatchOutcome` from raw `hole_scores` + `duo_submissions` (the same slot-resolution insight from Brief 10) across every round, feeding one `rankTeams()` call for the whole-trip Cup race and one `computeIndividualRace()` call for the net race (daily lows included). Every `chipOffRequired` bucket renders explicitly — verified against a real, naturally-occurring 4-way tie in production (only one team had duo picks on record, so no match could resolve yet). Individual race showed a real tie displayed correctly as equal values, not a fabricated order. Realtime wired on `hole_scores`/`duo_submissions`/`matches` (unfiltered, spans the whole trip). Home page's new gold `LEADERBOARD →` button sits *above* "Score a round" — the single most prominent element on the page now, not a fifth grid button. Part C (Sunday pairings preview) deliberately skipped — no schema field distinguishes Saturday from Sunday rounds, and guessing a convention risked being wrong later. See `SESSION_ADDENDUM_BRIEF14.md`.
 
 ## M2 status: CLOSED
 
@@ -161,6 +162,18 @@ production data, fake-data QA pass for the captain resubmission flow), and pushe
    locally — same known `SUPABASE_SERVICE_ROLE_KEY` placeholder limitation as every admin write
    since Brief 6/9. Confirmed the failure mode is clean (no orphaned test data), but the actual
    successful write is Chris's to run live, same as every prior admin brief.
+
+## Brief 14 (the live leaderboard) status: CLOSED
+
+Both required parts (Cup standings, individual race) plus realtime + home placement are built,
+verified (build/lint/84 tests, live check against real production data including a genuine
+naturally-occurring 4-way chip-off), and pushed. Part C (Sunday pairings preview) deliberately
+skipped — see `SESSION_ADDENDUM_BRIEF14.md` for why. `/leaderboard` is public, no sign-in needed,
+same as `/schedule`/`/champions`.
+
+**Still pending:** live two-device realtime confirmation specifically for this screen — bundles
+into Brief 7's still-open gate below, since the hook itself is unmodified from what four other
+screens already use.
 
 ## Two must-do items now closed (were carried-forward before M3)
 
