@@ -186,7 +186,7 @@ function Matchup({
         <>
           <TeamStatusRow
             team={teamX}
-            submitted={subX !== null}
+            submission={subX}
             iAmCaptain={iAmCaptainOfX}
             teamMembers={teamMembers}
             players={players}
@@ -196,7 +196,7 @@ function Matchup({
           />
           <TeamStatusRow
             team={teamY}
-            submitted={subY !== null}
+            submission={subY}
             iAmCaptain={iAmCaptainOfY}
             teamMembers={teamMembers}
             players={players}
@@ -231,7 +231,7 @@ function RevealedDuo({
 
 function TeamStatusRow({
   team,
-  submitted,
+  submission,
   iAmCaptain,
   teamMembers,
   players,
@@ -240,7 +240,7 @@ function TeamStatusRow({
   onCommitted,
 }: {
   team: Team | undefined;
-  submitted: boolean;
+  submission: DuoSubmission | null;
   iAmCaptain: boolean;
   teamMembers: TeamMember[];
   players: Player[];
@@ -250,18 +250,13 @@ function TeamStatusRow({
 }) {
   if (!team) return null;
 
-  if (submitted) {
-    return (
-      <div className={styles.statusRow}>
-        <b>{team.name}</b> — submitted, waiting on opponent
-      </div>
-    );
-  }
-
+  // Brief 13: a submission existing doesn't mean the captain is done looking at this — they
+  // need to be able to review and correct their own picks right up until both teams reveal.
+  // Only non-captain teammates (who can't act on it anyway) get the plain status line.
   if (!iAmCaptain) {
     return (
       <div className={styles.statusRow}>
-        <b>{team.name}</b> — not yet submitted
+        <b>{team.name}</b> — {submission ? "submitted, waiting on opponent" : "not yet submitted"}
       </div>
     );
   }
@@ -277,6 +272,7 @@ function TeamStatusRow({
       roster={roster}
       roundId={roundId}
       currentPlayerId={currentPlayerId}
+      existingSubmission={submission}
       onCommitted={onCommitted}
     />
   );
@@ -287,23 +283,26 @@ function CaptainForm({
   roster,
   roundId,
   currentPlayerId,
+  existingSubmission,
   onCommitted,
 }: {
   team: Team;
   roster: Player[];
   roundId: string;
   currentPlayerId: string;
+  existingSubmission: DuoSubmission | null;
   onCommitted: () => void;
 }) {
-  const [slots, setSlots] = useState<Record<SlotKey, string | null>>({
-    A1: null,
-    A2: null,
-    B1: null,
-    B2: null,
-  });
+  const [slots, setSlots] = useState<Record<SlotKey, string | null>>(() => ({
+    A1: existingSubmission?.duoAPlayer1 ?? null,
+    A2: existingSubmission?.duoAPlayer2 ?? null,
+    B1: existingSubmission?.duoBPlayer1 ?? null,
+    B2: existingSubmission?.duoBPlayer2 ?? null,
+  }));
   const [pickingSlot, setPickingSlot] = useState<SlotKey | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const assignedIds = new Set(Object.values(slots).filter((id): id is string => id !== null));
   const available = roster.filter((p) => !assignedIds.has(p.id));
@@ -332,6 +331,7 @@ function CaptainForm({
 
     setBusy(true);
     setError(null);
+    setSuccessMessage(null);
 
     const supabase = createClient();
     const { error: upsertError } = await supabase.from("duo_submissions").upsert(
@@ -355,12 +355,16 @@ function CaptainForm({
       return;
     }
 
+    setSuccessMessage(existingSubmission ? "Lineup updated" : "Lineup submitted");
     onCommitted();
   }
 
   return (
     <div className={styles.captainForm}>
-      <div className={styles.hint}>{team.name} — tap an open slot, then tap a player to fill it</div>
+      <div className={styles.hint}>
+        {team.name} — tap an open slot, then tap a player to fill it
+        {existingSubmission && " — you can still change this until both teams reveal"}
+      </div>
 
       <div className={styles.duoZones}>
         <div className={styles.duoZone}>
@@ -405,9 +409,10 @@ function CaptainForm({
         </div>
       )}
 
+      {successMessage && <div className={styles.success}>{successMessage}</div>}
       {error && <div className={styles.error}>{error}</div>}
       <button className={styles.commitBtn} disabled={busy} onClick={commit}>
-        {busy ? "Submitting…" : "Commit duos"}
+        {busy ? "Submitting…" : existingSubmission ? "Update duos" : "Commit duos"}
       </button>
       <div className={styles.hint}>Reveal fires the moment both captains have committed</div>
     </div>

@@ -17,7 +17,9 @@ import {
   removeReverseMulligan,
   removeSkinsEntry,
   removeTeamMember,
+  resetDuoSubmission,
   resetPlayerPin,
+  setDuoSubmission,
   setSeasonTrophies,
   setSkinsBuyIn,
   updatePlayerIndex,
@@ -128,6 +130,17 @@ interface SkinsEntry {
   player_id: string;
   round_id: string;
 }
+interface DuoSubmissionRow {
+  id: string;
+  round_id: string;
+  team_id: string;
+  captain_player_id: string;
+  duo_a_player_1: string;
+  duo_a_player_2: string | null;
+  duo_b_player_1: string | null;
+  duo_b_player_2: string | null;
+  committed_at: string | null;
+}
 
 async function loadAdminData() {
   const supabase = await createClient();
@@ -145,7 +158,7 @@ async function loadAdminData() {
     reverseMulligans,
     skinsEntries,
     holeScoreRoundIds,
-    duoSubmissionKeys,
+    duoSubmissions,
   ] = await Promise.all([
     supabase.from("players").select("id, name, index").order("name"),
     supabase.from("teams").select("id, name, captain_player_id").order("name"),
@@ -168,11 +181,17 @@ async function loadAdminData() {
       .from("reverse_mulligans")
       .select("id, team_id, round_id, hole, victim_player_id, original_holed_score"),
     supabase.from("skins_entries").select("id, player_id, round_id"),
-    // Lightweight, FK-only fetches purely for the delete-confirmation dependency counts below
-    // (Brief 9 Part A) — no need for the full rows, hole_scores/duo_submissions can run into
-    // the hundreds but are still trivial as just their round/team columns.
+    // Lightweight FK-only fetch purely for the delete-confirmation dependency counts below
+    // (Brief 9 Part A) — hole_scores can run into the hundreds but is trivial as just round_id.
     supabase.from("hole_scores").select("round_id"),
-    supabase.from("duo_submissions").select("round_id, team_id"),
+    // Full rows (Brief 13 Part C: admin's own duo-submissions view/set/reset needs every
+    // field, not just the round_id/team_id used for dependency counts) — still tiny, at most
+    // one row per team per round.
+    supabase
+      .from("duo_submissions")
+      .select(
+        "id, round_id, team_id, captain_player_id, duo_a_player_1, duo_a_player_2, duo_b_player_1, duo_b_player_2, committed_at",
+      ),
   ]);
 
   // Fetched separately from the core round fields above: if 0019 (skins_buy_in) hasn't run
@@ -224,8 +243,8 @@ async function loadAdminData() {
 
   const matchesByRound = countBy(matches.data ?? [], (m) => m.round_id);
   const holeScoresByRound = countBy(holeScoreRoundIds.data ?? [], (r) => r.round_id);
-  const duoSubsByRound = countBy(duoSubmissionKeys.data ?? [], (d) => d.round_id);
-  const duoSubsByTeam = countBy(duoSubmissionKeys.data ?? [], (d) => d.team_id);
+  const duoSubsByRound = countBy(duoSubmissions.data ?? [], (d) => d.round_id);
+  const duoSubsByTeam = countBy(duoSubmissions.data ?? [], (d) => d.team_id);
   const skinsEntriesByRound = countBy(skinsEntries.data ?? [], (s) => s.round_id);
   const rmByRound = countBy(reverseMulligans.data ?? [], (r) => r.round_id);
   const rmByTeam = countBy(reverseMulligans.data ?? [], (r) => r.team_id);
@@ -250,6 +269,7 @@ async function loadAdminData() {
     scheduleItems: (scheduleItems.data ?? []) as ScheduleItem[],
     reverseMulligans: (reverseMulligans.data ?? []) as ReverseMulligan[],
     skinsEntries: (skinsEntries.data ?? []) as SkinsEntry[],
+    duoSubmissions: (duoSubmissions.data ?? []) as DuoSubmissionRow[],
     dependencyCounts: {
       matchesByRound,
       holeScoresByRound,
@@ -322,6 +342,7 @@ export default async function AdminPage({
     scheduleItems,
     reverseMulligans,
     skinsEntries,
+    duoSubmissions,
     dependencyCounts: dc,
   } = await loadAdminData();
   const selectedRoundId = params.round ?? rounds[0]?.id;
@@ -618,6 +639,102 @@ export default async function AdminPage({
             Create round
           </button>
         </form>
+      </section>
+
+      {/* ---------------- Duo submissions (Brief 13 Part C) ---------------- */}
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}>Duo submissions</div>
+        <div className={styles.hint}>
+          Commissioner override — shows and edits both teams&apos; lineups regardless of the
+          blind-until-both-reveal rule captains see on /duos. Intentional, not a bug.
+        </div>
+        <div className={styles.hint}>Round:</div>
+        <RoundPicker rounds={rounds} courses={courses} selected={selectedRoundId} />
+        {!selectedRoundId && <div className={styles.hint}>No rounds yet.</div>}
+        {selectedRoundId &&
+          teams.map((team) => {
+            const roster = teamMembers
+              .filter((m) => m.team_id === team.id)
+              .map((m) => players.find((p) => p.id === m.player_id))
+              .filter((p): p is Player => p !== undefined);
+            const sub = duoSubmissions.find(
+              (d) => d.round_id === selectedRoundId && d.team_id === team.id,
+            );
+            return (
+              <div
+                key={team.id}
+                className={styles.row}
+                style={{ flexDirection: "column", alignItems: "stretch" }}
+              >
+                <div className={styles.inlineForm} style={{ justifyContent: "space-between" }}>
+                  <div className={styles.hint}>
+                    <b style={{ color: "var(--cream)" }}>{team.name}</b>
+                    {sub ? " · submitted" : " · not yet submitted"}
+                  </div>
+                  {sub && (
+                    <form action={resetDuoSubmission}>
+                      <input type="hidden" name="roundId" value={selectedRoundId} />
+                      <input type="hidden" name="teamId" value={team.id} />
+                      <ConfirmDeleteButton
+                        className={styles.btnDanger}
+                        confirmMessage={`Reset ${team.name}'s duo submission for this round? They'll need to submit again.`}
+                      >
+                        Reset
+                      </ConfirmDeleteButton>
+                    </form>
+                  )}
+                </div>
+                <form action={setDuoSubmission} className={styles.inlineForm}>
+                  <input type="hidden" name="roundId" value={selectedRoundId} />
+                  <input type="hidden" name="teamId" value={team.id} />
+                  <input
+                    type="hidden"
+                    name="captainPlayerId"
+                    value={sub?.captain_player_id ?? team.captain_player_id ?? ""}
+                  />
+                  <span className={styles.hint}>Duo A:</span>
+                  <select className={styles.select} name="duoAPlayer1" defaultValue={sub?.duo_a_player_1 ?? ""}>
+                    <option value="" disabled>
+                      Player 1
+                    </option>
+                    {roster.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select className={styles.select} name="duoAPlayer2" defaultValue={sub?.duo_a_player_2 ?? ""}>
+                    <option value="">— none —</option>
+                    {roster.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={styles.hint}>Duo B:</span>
+                  <select className={styles.select} name="duoBPlayer1" defaultValue={sub?.duo_b_player_1 ?? ""}>
+                    <option value="">— none —</option>
+                    {roster.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select className={styles.select} name="duoBPlayer2" defaultValue={sub?.duo_b_player_2 ?? ""}>
+                    <option value="">— none —</option>
+                    {roster.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button className={styles.btn} type="submit">
+                    Save lineup
+                  </button>
+                </form>
+              </div>
+            );
+          })}
       </section>
 
       {/* ---------------- Indexes ---------------- */}

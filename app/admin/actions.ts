@@ -496,6 +496,77 @@ export async function removeReverseMulligan(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
+// Duo submissions (Brief 13 Part C) — a commissioner override, deliberately exempt from the
+// blind-until-both-commit rule that governs a captain's own /duos view: admin needs to see
+// and set BOTH teams' lineups regardless of the other side's status (a captain's phone died,
+// a fix is needed mid-round, etc). Same underlying upsert as a captain's own submission
+// (Part B), just triggered from here instead.
+// ---------------------------------------------------------------------------
+
+export async function setDuoSubmission(formData: FormData) {
+  await requireAdmin();
+  const roundId = String(formData.get("roundId"));
+  const teamId = String(formData.get("teamId"));
+  const captainPlayerId = String(formData.get("captainPlayerId") ?? "");
+  const duoAPlayer1 = String(formData.get("duoAPlayer1") ?? "");
+  const duoAPlayer2 = String(formData.get("duoAPlayer2") ?? "") || null;
+  const duoBPlayer1 = String(formData.get("duoBPlayer1") ?? "") || null;
+  const duoBPlayer2 = String(formData.get("duoBPlayer2") ?? "") || null;
+
+  if (!captainPlayerId) {
+    flashError("This team has no captain on record — assign one first, under Teams");
+  }
+  if (!duoAPlayer1) flashError("Duo A needs at least one player");
+
+  const chosen = [duoAPlayer1, duoAPlayer2, duoBPlayer1, duoBPlayer2].filter(
+    (id): id is string => id !== null,
+  );
+  if (new Set(chosen).size !== chosen.length) {
+    flashError("A player can only be in one duo slot");
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("duo_submissions").upsert(
+    {
+      round_id: roundId,
+      team_id: teamId,
+      captain_player_id: captainPlayerId,
+      duo_a_player_1: duoAPlayer1,
+      duo_a_player_2: duoAPlayer2,
+      duo_b_player_1: duoBPlayer1,
+      duo_b_player_2: duoBPlayer2,
+      committed_at: new Date().toISOString(),
+    },
+    { onConflict: "round_id,team_id" },
+  );
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/duos");
+  revalidatePath("/score");
+  flash("Duo lineup saved");
+}
+
+export async function resetDuoSubmission(formData: FormData) {
+  await requireAdmin();
+  const roundId = String(formData.get("roundId"));
+  const teamId = String(formData.get("teamId"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("duo_submissions")
+    .delete()
+    .eq("round_id", roundId)
+    .eq("team_id", teamId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/duos");
+  revalidatePath("/score");
+  flash("Duo submission reset — the captain can submit again");
+}
+
+// ---------------------------------------------------------------------------
 // Schedule items (Brief 8 Part B) — admin-authored content, no player-facing editing.
 // ---------------------------------------------------------------------------
 

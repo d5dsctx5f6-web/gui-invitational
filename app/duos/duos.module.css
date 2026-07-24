@@ -262,6 +262,17 @@
   text-align: center;
 }
 
+.success {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--spruce);
+  background: var(--gold);
+  border-radius: 4px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
 .commitBtn {
   border: none;
   border-radius: 4px;
