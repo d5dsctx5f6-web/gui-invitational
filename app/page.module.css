@@ -179,6 +179,21 @@
   padding: 18px;
 }
 
+.leaderboardLink {
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--spruce);
+  background: var(--gold);
+  border-radius: 4px;
+  padding: 18px;
+}
+
 .navLinks {
   width: 100%;
   display: grid;

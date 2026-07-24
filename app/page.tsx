@@ -19,6 +19,10 @@ export default async function Home() {
       <h1 className={styles.masthead}>THE GUI INVITATIONAL</h1>
       <p className={styles.subhead}>YEAR ONE &middot; MMXXVII</p>
 
+      <Link href="/leaderboard" className={styles.leaderboardLink}>
+        Leaderboard →
+      </Link>
+
       <Link href="/score" className={styles.scoreLink}>
         Score a round →
       </Link>

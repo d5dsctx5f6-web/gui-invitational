@@ -1,0 +1,141 @@
+.page {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 24px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--tile2);
+}
+
+.eyebrow b {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.tab {
+  all: unset;
+  flex: 1;
+  box-sizing: border-box;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid var(--seam);
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tile2);
+}
+
+.tabActive {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.board {
+  background: var(--board2);
+  border: 2px solid var(--seam);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 28px 1fr 64px;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.tile {
+  background: var(--cream);
+  color: var(--spruce);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.pos {
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 600;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.nameDetail {
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--seam);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pts {
+  justify-content: center;
+  background: var(--red);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.chipRow {
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  padding: 8px;
+  background: rgba(216, 167, 59, 0.08);
+}
+
+.chipNote {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.lowBadge {
+  color: var(--gold);
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.boardfoot {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tile2);
+  text-align: center;
+  line-height: 1.7;
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--tile2);
+  text-align: center;
+}
