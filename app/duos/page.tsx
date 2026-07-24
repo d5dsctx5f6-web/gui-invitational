@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
-import { IdentityPicker } from "../IdentityPicker";
+import { SignInGate } from "../SignInGate";
 import pageStyles from "../page.module.css";
 import { DuosScreen } from "./DuosScreen";
 import styles from "./duos.module.css";
@@ -31,7 +31,7 @@ export default async function DuosPage({
         <p style={{ color: "var(--cream)", textAlign: "center" }}>
           Sign in with your name and PIN to submit duos.
         </p>
-        <IdentityPicker players={players ?? []} currentPlayer={null} redirectTo="/duos" />
+        <SignInGate players={players ?? []} />
       </main>
     );
   }

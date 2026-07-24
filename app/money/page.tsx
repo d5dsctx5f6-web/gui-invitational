@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
-import { IdentityPicker } from "../IdentityPicker";
+import { SignInGate } from "../SignInGate";
 import pageStyles from "../page.module.css";
 import { MoneyScreen } from "./MoneyScreen";
 import styles from "./money.module.css";
@@ -31,7 +31,7 @@ export default async function MoneyPage({
         <p style={{ color: "var(--cream)", textAlign: "center" }}>
           Sign in with your name and PIN to see the Money screen.
         </p>
-        <IdentityPicker players={players ?? []} currentPlayer={null} redirectTo="/money" />
+        <SignInGate players={players ?? []} />
       </main>
     );
   }

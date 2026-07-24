@@ -37,7 +37,7 @@ export interface DuoSubmission {
   committedAt: string | null;
 }
 
-type Assignment = "A" | "B" | null;
+type SlotKey = "A1" | "A2" | "B1" | "B2";
 
 function playerName(players: Player[], id: string): string {
   return players.find((p) => p.id === id)?.name ?? "?";
@@ -295,28 +295,38 @@ function CaptainForm({
   currentPlayerId: string;
   onCommitted: () => void;
 }) {
-  const [assignments, setAssignments] = useState<Record<string, Assignment>>({});
+  const [slots, setSlots] = useState<Record<SlotKey, string | null>>({
+    A1: null,
+    A2: null,
+    B1: null,
+    B2: null,
+  });
+  const [pickingSlot, setPickingSlot] = useState<SlotKey | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function cycle(playerId: string) {
-    setAssignments((prev) => {
-      const current = prev[playerId] ?? null;
-      const next: Assignment = current === null ? "A" : current === "A" ? "B" : null;
-      return { ...prev, [playerId]: next };
-    });
+  const assignedIds = new Set(Object.values(slots).filter((id): id is string => id !== null));
+  const available = roster.filter((p) => !assignedIds.has(p.id));
+
+  function assign(slot: SlotKey, playerId: string) {
+    setSlots((prev) => ({ ...prev, [slot]: playerId }));
+    setPickingSlot(null);
   }
 
-  const duoA = roster.filter((p) => assignments[p.id] === "A");
-  const duoB = roster.filter((p) => assignments[p.id] === "B");
+  function clear(slot: SlotKey) {
+    setSlots((prev) => ({ ...prev, [slot]: null }));
+  }
+
+  function openSlot(slot: SlotKey) {
+    setPickingSlot((prev) => (prev === slot ? null : slot));
+  }
+
+  const duoA = [slots.A1, slots.A2].filter((id): id is string => id !== null);
+  const duoB = [slots.B1, slots.B2].filter((id): id is string => id !== null);
 
   async function commit() {
     if (duoA.length === 0) {
       setError("Duo A needs at least one player");
-      return;
-    }
-    if (duoA.length > 2 || duoB.length > 2) {
-      setError("A duo can have at most two players");
       return;
     }
 
@@ -329,10 +339,10 @@ function CaptainForm({
         round_id: roundId,
         team_id: team.id,
         captain_player_id: currentPlayerId,
-        duo_a_player_1: duoA[0].id,
-        duo_a_player_2: duoA[1]?.id ?? null,
-        duo_b_player_1: duoB[0]?.id ?? null,
-        duo_b_player_2: duoB[1]?.id ?? null,
+        duo_a_player_1: duoA[0],
+        duo_a_player_2: duoA[1] ?? null,
+        duo_b_player_1: duoB[0] ?? null,
+        duo_b_player_2: duoB[1] ?? null,
         committed_at: new Date().toISOString(),
       },
       { onConflict: "round_id,team_id" },
@@ -350,29 +360,96 @@ function CaptainForm({
 
   return (
     <div className={styles.captainForm}>
-      <div className={styles.hint}>{team.name} — tap a player to cycle Duo A / Duo B / off</div>
-      <div className={styles.rosterGrid}>
-        {roster.map((p) => {
-          const a = assignments[p.id] ?? null;
-          return (
-            <button
-              key={p.id}
-              className={`${styles.rosterChip} ${
-                a === "A" ? styles.rosterChipA : a === "B" ? styles.rosterChipB : ""
-              }`}
-              onClick={() => cycle(p.id)}
-            >
-              {p.name}
-              {a && <span className={styles.rosterChipTag}> · {a}</span>}
-            </button>
-          );
-        })}
+      <div className={styles.hint}>{team.name} — tap an open slot, then tap a player to fill it</div>
+
+      <div className={styles.duoZones}>
+        <div className={styles.duoZone}>
+          <div className={styles.duoZoneLabel}>Duo A</div>
+          <div className={styles.slotRow}>
+            <Slot slotKey="A1" playerId={slots.A1} roster={roster} active={pickingSlot === "A1"} onOpen={openSlot} onClear={clear} />
+            <Slot slotKey="A2" playerId={slots.A2} roster={roster} active={pickingSlot === "A2"} onOpen={openSlot} onClear={clear} />
+          </div>
+        </div>
+        <div className={styles.duoZone}>
+          <div className={styles.duoZoneLabel}>Duo B</div>
+          <div className={styles.slotRow}>
+            <Slot slotKey="B1" playerId={slots.B1} roster={roster} active={pickingSlot === "B1"} onOpen={openSlot} onClear={clear} />
+            <Slot slotKey="B2" playerId={slots.B2} roster={roster} active={pickingSlot === "B2"} onOpen={openSlot} onClear={clear} />
+          </div>
+        </div>
       </div>
+
+      {pickingSlot && (
+        <div className={styles.pickerPanel}>
+          <div className={styles.pickerHead}>
+            Filling {pickingSlot[0] === "A" ? "Duo A" : "Duo B"}
+            <button className={styles.pickerClose} onClick={() => setPickingSlot(null)} aria-label="Cancel">
+              ×
+            </button>
+          </div>
+          <div className={styles.rosterGrid}>
+            {available.length === 0 ? (
+              <span className={styles.hint}>Everyone&apos;s already placed</span>
+            ) : (
+              available.map((p) => (
+                <button
+                  key={p.id}
+                  className={styles.rosterChip}
+                  onClick={() => assign(pickingSlot, p.id)}
+                >
+                  {p.name}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {error && <div className={styles.error}>{error}</div>}
       <button className={styles.commitBtn} disabled={busy} onClick={commit}>
         {busy ? "Submitting…" : "Commit duos"}
       </button>
       <div className={styles.hint}>Reveal fires the moment both captains have committed</div>
     </div>
+  );
+}
+
+function Slot({
+  slotKey,
+  playerId,
+  roster,
+  active,
+  onOpen,
+  onClear,
+}: {
+  slotKey: SlotKey;
+  playerId: string | null;
+  roster: Player[];
+  active: boolean;
+  onOpen: (slot: SlotKey) => void;
+  onClear: (slot: SlotKey) => void;
+}) {
+  if (playerId) {
+    const name = playerName(roster, playerId);
+    return (
+      <div className={`${styles.slot} ${styles.slotFilled}`}>
+        {name}
+        <button
+          className={styles.slotRemove}
+          aria-label={`Remove ${name}`}
+          onClick={() => onClear(slotKey)}
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      className={`${styles.slotEmpty} ${active ? styles.slotEmptyActive : ""}`}
+      onClick={() => onOpen(slotKey)}
+    >
+      + Add player
+    </button>
   );
 }

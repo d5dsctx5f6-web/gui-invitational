@@ -1,0 +1,95 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 20, 15, 0.7);
+  z-index: 80;
+}
+
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  z-index: 85;
+  box-sizing: border-box;
+  background: var(--board2);
+  border-top: 2px solid var(--gold);
+  border-radius: 8px 8px 0 0;
+  padding: 18px 16px calc(20px + env(safe-area-inset-bottom));
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.sheethead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.sheettitle {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.closeBtn {
+  all: unset;
+  cursor: pointer;
+  color: var(--tile2);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.rosterList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--gold);
+  border-radius: 4px;
+  overflow: hidden;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.rosterItem {
+  background: var(--cream);
+  color: var(--spruce);
+}
+
+.rosterButton {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 52px;
+  font-size: 17px;
+  font-weight: 500;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.youBadge {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--spruce);
+  background: var(--gold);
+  padding: 3px 8px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.pinBox {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}

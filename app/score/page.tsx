@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { IdentityPicker } from "../IdentityPicker";
+import { SignInGate } from "../SignInGate";
 import { courseHandicap, playingHandicap, strokesForHoles } from "@/engine/src";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
@@ -211,7 +211,7 @@ export default async function ScorePage({
         <p style={{ color: "var(--cream)", textAlign: "center" }}>
           Sign in with your name and PIN to score this round.
         </p>
-        <IdentityPicker players={players ?? []} currentPlayer={null} redirectTo="/score" />
+        <SignInGate players={players ?? []} />
       </main>
     );
   }
