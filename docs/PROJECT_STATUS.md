@@ -1,6 +1,6 @@
 # PROJECT STATUS — The GUI Invitational
 
-**Last updated:** July 24, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening), Brief 10 (score routing fix), Brief 11 (RM visibility investigation, no code defect found), Brief 12 (PIN modal + duo A/B slot picker), Brief 13 (duo resubmission fix + admin duo view/set/reset), and Brief 14 (the live leaderboard — a new core screen) all built and pushed on top of it. Outstanding: Brief 7's live two-device gate (now also covers `/leaderboard`'s realtime), Brief 9's own live verification, Chris's own live click-through of the duo slot picker as a real captain, and confirming the resubmission-before-reveal assumption from Brief 13 — all independent and can happen on their own schedule — read this first before resuming.
+**Last updated:** July 24, 2026 · **Status:** M3 is closed; Brief 9 (admin/UX hardening), Brief 10 (score routing fix), Brief 11 (RM visibility investigation, no code defect found), Brief 12 (PIN modal + duo A/B slot picker), Brief 13 (duo resubmission fix + admin duo view/set/reset), Brief 14 (the live leaderboard — a new core screen), and Brief 15 (stale leaderboard data fix + rounds admin cleanup) all built and pushed on top of it. Outstanding: Brief 7's live two-device gate (now also covers `/leaderboard`'s realtime), Brief 9's own live verification, Chris's own live click-through of the duo slot picker as a real captain, confirming the resubmission-before-reveal assumption from Brief 13, and **running migration `0022`** (Brief 15's stale-data cleanup, on top of still-pending `0020`/`0021`) — all independent and can happen on their own schedule — read this first before resuming.
 
 ---
 
@@ -22,6 +22,7 @@
 - **Brief 12 (PIN modal + duo A/B selection) — CLOSED**: sign-in is now a bottom-sheet modal (mockup's `.sheet`/`.sheetback` pattern) instead of a full-page takeover — new `SignInModal`/`SignInGate`, triggered from the home roster and from signed-out gates on `/score`/`/duos`/`/money`. The real fix underneath: `submitPin()` used to hard-navigate via `window.location.href`; it now calls `router.refresh()`, so success closes the modal in place with no reload and no `redirectTo` plumbing needed. Duo A/B selection in `/duos` no longer cycles a tapped player through off→A→B→off on repeat taps — replaced with four explicit slots (two per duo), each an empty "+ Add player" or a filled chip with a `×` to remove; tapping an empty slot opens a picker of only the not-yet-placed roster. Verified live for the modal (real triggers, no PIN submitted); the duo picker was verified against a temporary local-only QA route with fake data (never touching a real player identity), deleted before commit. See `SESSION_ADDENDUM_BRIEF12.md`.
 - **Brief 13 (duo resubmission fix + admin override) — CLOSED**: diagnosed Chris's "stale duo picks" report and found the write path (`upsert` on `(round_id, team_id)`) has been correct since Brief 7 — confirmed zero duplicate rows in production. The real bug: `TeamStatusRow` stopped rendering `CaptainForm` the instant any submission existed, so a captain had no way back into the form to fix a mistake — not a failed write, an unreachable one. Fixed by letting the captain (never teammates) keep seeing the form pre-reveal regardless of submitted status, pre-filled from the existing picks, with a success message and an "Update duos" label once resubmitting. Also built the missing admin capability PRODUCT_SPEC §3 calls for: a new "Duo submissions" section in `/admin` showing every team's lineup per round (deliberately exempt from the blind-reveal rule — a commissioner override), direct set/edit via roster dropdowns, and a reset action. See `SESSION_ADDENDUM_BRIEF13.md`.
 - **Brief 14 (the live leaderboard) — CLOSED**: a new `/leaderboard` screen — there had never been one in the real app despite the engine computing team standings and the individual net race correctly since Brief 5. Computes every match's `TeamMatchOutcome` from raw `hole_scores` + `duo_submissions` (the same slot-resolution insight from Brief 10) across every round, feeding one `rankTeams()` call for the whole-trip Cup race and one `computeIndividualRace()` call for the net race (daily lows included). Every `chipOffRequired` bucket renders explicitly — verified against a real, naturally-occurring 4-way tie in production (only one team had duo picks on record, so no match could resolve yet). Individual race showed a real tie displayed correctly as equal values, not a fabricated order. Realtime wired on `hole_scores`/`duo_submissions`/`matches` (unfiltered, spans the whole trip). Home page's new gold `LEADERBOARD →` button sits *above* "Score a round" — the single most prominent element on the page now, not a fifth grid button. Part C (Sunday pairings preview) deliberately skipped — no schema field distinguishes Saturday from Sunday rounds, and guessing a convention risked being wrong later. See `SESSION_ADDENDUM_BRIEF14.md`.
+- **Brief 15 (stale leaderboard data fix + rounds admin cleanup) — CLOSED**: diagnosed Chris's "phantom thru-18 players" report and found the brief's own hypothesis (a leftover Brief 3/M1 demo round) doesn't match reality — that demo scaffold is already gone, and there is exactly **one** round in the database, the same one Chris is actively scoring in real life. The real cause: that round's *other* matchup (Lacko v Spenny) has a complete 18-hole test round left over from an earlier verification pass for Dominic Ikeler, Ian Hastings, Spencer Petersen, and Grant Brogan, sitting alongside Chris's real in-progress Deliso-v-Jones scores in the same round. New migration `0022` deletes exactly those 4 players' `hole_scores` (and one stale `reverse_mulligans` row caught during verification) — never the round itself, which would have destroyed Chris's real active data too. Also added a light admin round-count guardrail (Part C) and reorganized `/admin`'s Rounds & Matchups into per-round bordered cards (Part D) instead of one flat list. See `SESSION_ADDENDUM_BRIEF15.md`.
 
 ## M2 status: CLOSED
 
@@ -174,6 +175,22 @@ same as `/schedule`/`/champions`.
 **Still pending:** live two-device realtime confirmation specifically for this screen — bundles
 into Brief 7's still-open gate below, since the hook itself is unmodified from what four other
 screens already use.
+
+## Brief 15 (stale leaderboard data fix + rounds admin cleanup) status: CLOSED, ONE MIGRATION PENDING
+
+All four parts built, verified (build/lint/84 tests, reproduced the exact reported bug live
+against the current unfixed database before writing the fix, confirmed the fix's targeting is
+correct), and pushed. See `SESSION_ADDENDUM_BRIEF15.md` — especially Part A's findings, which
+overturn the brief's own initial hypothesis.
+
+**Key correction to the brief's premise:** there is no separate stale "demo round" to delete —
+that data was already cleaned up long ago. The stale data lives *inside* the same round Chris is
+actively using, on the Lacko-v-Spenny matchup he hasn't gotten to yet. The fix is row-level
+(specific players' `hole_scores`, plus one stale `reverse_mulligans` row), not round-level —
+deleting the round itself would have destroyed Chris's real in-progress scores too.
+
+**Still pending:** migration `0022` needs Chris to run it in the Supabase SQL editor — same
+as `0020` and `0021`, neither of which has been confirmed run yet either.
 
 ## Two must-do items now closed (were carried-forward before M3)
 
