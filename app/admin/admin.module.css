@@ -195,6 +195,43 @@
   color: var(--tile2);
 }
 
+.roundCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  border: 1px solid var(--seam);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.roundCardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.matchupsLabel {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-top: 2px;
+}
+
+.countNote {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  background: rgba(216, 167, 59, 0.1);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
 .checkboxLabel {
   font-size: 11px;
   color: var(--tile2);

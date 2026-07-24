@@ -500,14 +500,20 @@ export default async function AdminPage({
         </form>
       </section>
 
-      {/* ---------------- Rounds + Matchups ---------------- */}
+      {/* ---------------- Rounds + Matchups (Brief 15 Part D: grouped per round) ---------------- */}
       <section className={styles.section}>
         <div className={styles.sectionTitle}>Rounds &amp; matchups</div>
+        {rounds.length > 2 && (
+          <div className={styles.countNote}>
+            {rounds.length} rounds exist — SPEC calls for 2 competitive rounds per trip. Clear out
+            any stray/test rounds below if they don&apos;t belong.
+          </div>
+        )}
         {rounds.map((round) => {
           const roundMatches = matches.filter((m) => m.round_id === round.id);
           return (
-            <div key={round.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
-              <div className={styles.inlineForm} style={{ justifyContent: "space-between" }}>
+            <div key={round.id} className={styles.roundCard}>
+              <div className={styles.roundCardHead}>
                 <div className={styles.hint}>
                   <b style={{ color: "var(--cream)" }}>{roundLabel(round)}</b>
                   <span> · {round.date}</span>
@@ -537,6 +543,8 @@ export default async function AdminPage({
                   Save
                 </button>
               </form>
+
+              <div className={styles.matchupsLabel}>Matchups</div>
               {roundMatches.map((m) => (
                 <div key={m.id} className={styles.inlineForm}>
                   <form action={upsertMatch} className={styles.inlineForm}>
