@@ -315,6 +315,7 @@ export function Scorecard({
         gross: grossByPlayer.get(p.id) ?? 0,
         net: standing?.cumulativeNet ?? 0,
         holesPlayed: standing?.holesPlayed ?? 0,
+        hasIndex: p.hasIndex,
       };
     });
   }, [postedScores, allPlayers, data.roundId]);
@@ -511,6 +512,9 @@ export function Scorecard({
                     <span className={styles.dots}>{"•".repeat(dots)}</span>
                   )}
                 </div>
+                {!p.hasIndex && (
+                  <div className={styles.noIndexNote}>no index on file — 0 strokes</div>
+                )}
                 {hasDivergence && (
                   <div className={styles.rmNote}>
                     RM called — real score {holedRm!.originalHoledScore} stands for
@@ -703,7 +707,10 @@ export function Scorecard({
         </div>
         {runningTotals.map((t) => (
           <div className={styles.totalsRow} key={t.playerId}>
-            <span className={styles.totalsName}>{t.name}</span>
+            <span className={styles.totalsName}>
+              {t.name}
+              {!t.hasIndex && <span className={styles.noIndexNote}> · no index</span>}
+            </span>
             <span className={styles.totalsThru}>thru {t.holesPlayed}</span>
             <span className={styles.totalsVal}>{t.gross}</span>
             <span className={styles.totalsVal}>{t.net}</span>

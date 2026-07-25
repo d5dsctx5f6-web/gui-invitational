@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { courseHandicap, playingHandicap, strokesForHoles } from "./handicap";
+import { courseHandicap, dotsForPlayer, playingHandicap, strokesForHoles } from "./handicap";
 
 describe("courseHandicap", () => {
   it("matches a neutral course (slope 113, rating == par)", () => {
@@ -52,5 +52,44 @@ describe("strokesForHoles", () => {
     const expected = strokeIndexByHole.map((si) => (si <= 4 ? 2 : 1));
     expect(strokes).toEqual(expected);
     expect(strokes.reduce((sum, s) => sum + s, 0)).toBe(22);
+  });
+});
+
+describe("dotsForPlayer (Brief 18 — null index must never produce real strokes)", () => {
+  // GreyHawk's actual tee: rating 71.4, par 72 -> rating - par = -0.6, rounds to -1. This is
+  // exactly the shape that turned "index coerced to 0" into a real (if small) computed
+  // handicap for players whose index is simply unknown, not a confirmed scratch golfer.
+  const greyHawkTee = { rating: 71.4, slope: 137, par: 72 };
+  const strokeIndexByHole = [
+    9, 13, 5, 7, 17, 1, 11, 15, 3, 4, 16, 2, 14, 10, 8, 12, 18, 6,
+  ];
+
+  it("gives a null index zero strokes on every hole, formula never runs", () => {
+    const dots = dotsForPlayer(null, greyHawkTee, strokeIndexByHole);
+    expect(dots).toEqual(Array(18).fill(0));
+  });
+
+  it("a real 0.0 index still runs the real formula (can legitimately go negative)", () => {
+    // round(0 * 137/113 + (71.4-72)) = round(-0.6) = -1 -> base -1, remainder 17 -> every hole
+    // gets 0 except the single SI-18 hole, which gets -1 (a stroke given back).
+    const dots = dotsForPlayer(0, greyHawkTee, strokeIndexByHole);
+    const si18HoleIndex = strokeIndexByHole.indexOf(18);
+    expect(dots[si18HoleIndex]).toBe(-1);
+    expect(dots.filter((_, i) => i !== si18HoleIndex).every((d) => d === 0)).toBe(true);
+  });
+
+  it("a real positive index is unaffected by the null fix", () => {
+    // Chris Deliso's real trip index: 9.9 -> course handicap 11 (confirmed in prior briefs).
+    const dots = dotsForPlayer(9.9, greyHawkTee, strokeIndexByHole);
+    expect(dots.reduce((sum, d) => sum + d, 0)).toBe(11);
+  });
+
+  it("net never exceeds gross for a null-index player (the actual reported bug)", () => {
+    // Ben Meier's shape: null index, 18 real holes posted.
+    const dots = dotsForPlayer(null, greyHawkTee, strokeIndexByHole);
+    const grossPerHole = [4, 5, 4, 4, 6, 3, 5, 5, 3, 5, 4, 3, 6, 4, 5, 6, 6, 6];
+    const gross = grossPerHole.reduce((sum, s) => sum + s, 0);
+    const net = grossPerHole.reduce((sum, s, i) => sum + (s - dots[i]), 0);
+    expect(net).toBe(gross); // pre-fix, a null index would have made this 1 higher, never equal
   });
 });

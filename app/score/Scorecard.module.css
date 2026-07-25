@@ -359,3 +359,10 @@
   color: var(--gold);
   margin-top: 3px;
 }
+
+.noIndexNote {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--tile2);
+  margin-top: 3px;
+}

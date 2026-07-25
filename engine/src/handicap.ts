@@ -39,3 +39,27 @@ export function strokesForHoles(
     strokeIndex <= remainder ? base + 1 : base,
   );
 }
+
+/**
+ * The canonical, null-safe path from a player's index to their per-hole dots — every screen
+ * that needs dots (scorecard, running totals, leaderboard) should call this rather than
+ * chaining courseHandicap/playingHandicap/strokesForHoles by hand (Brief 18).
+ *
+ * `index === null` means "no real handicap on file yet" (PRODUCT_SPEC §2/§6 — expected until a
+ * player's real GHIN/trip index is loaded) and receives zero strokes on every hole, full stop —
+ * the course-handicap formula never runs. This is deliberately distinct from a real `0` index
+ * (an actual confirmed-scratch golfer), which runs the formula normally and can legitimately
+ * produce a small negative course handicap (a stroke given back) on a tee where rating < par.
+ * Coercing null to 0 before the formula ran was exactly the Brief 18 bug: it let an *unknown*
+ * index quietly produce a real handicap adjustment, occasionally pushing net above gross.
+ */
+export function dotsForPlayer(
+  index: number | null,
+  tee: TeeSetup,
+  strokeIndexByHole: number[],
+  allowancePct: number = 1,
+): number[] {
+  if (index === null) return strokeIndexByHole.map(() => 0);
+  const handicap = courseHandicap(index, tee);
+  return strokesForHoles(playingHandicap(handicap, allowancePct), strokeIndexByHole);
+}

@@ -7,13 +7,11 @@ import {
   computeIndividualRace,
   computeMatchState,
   countHolesWon,
-  courseHandicap,
+  dotsForPlayer,
   matchScore,
   netScore,
-  playingHandicap,
   rankTeams,
   realScore,
-  strokesForHoles,
   type DuoHoleNets,
   type PlayerHoleNet,
   type TeamMatchOutcome,
@@ -108,11 +106,7 @@ function compute(snapshot: Snapshot) {
 
     const dotsByPlayer = new Map<string, number[]>();
     for (const p of snapshot.players) {
-      const handicap = courseHandicap(p.index ?? 0, tee);
-      dotsByPlayer.set(
-        p.id,
-        strokesForHoles(playingHandicap(handicap), tee.stroke_index),
-      );
+      dotsByPlayer.set(p.id, dotsForPlayer(p.index, tee, tee.stroke_index));
     }
 
     const roundHoleScores = snapshot.holeScores.filter(
@@ -333,6 +327,7 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
               const isDailyLow = race.dailyLows.some((dl) => dl.playerIds.includes(s.playerId));
               const netToPar = s.cumulativeNet - s.parPlayed;
               const grossToPar = s.cumulativeGross - s.parPlayed;
+              const hasIndex = snapshot.players.find((p) => p.id === s.playerId)?.index !== null;
               return (
                 <div className={styles.row} key={s.playerId}>
                   <div className={`${styles.tile} ${styles.pos}`}>{i + 1}</div>
@@ -341,6 +336,7 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
                     {isDailyLow && <span className={styles.lowBadge}>◆</span>}
                     <span className={styles.nameDetail}>
                       thru {s.holesPlayed} · gross {toPar(grossToPar)}
+                      {!hasIndex && " · no index"}
                     </span>
                   </div>
                   <div className={`${styles.tile} ${styles.pts}`}>{toPar(netToPar)}</div>

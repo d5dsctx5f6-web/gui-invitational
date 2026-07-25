@@ -3,6 +3,9 @@ export interface ScorecardPlayer {
   name: string;
   /** Strokes received per hole, index 0 = hole 1. */
   dotsByHole: number[];
+  /** False means no real index on file yet — dotsByHole is all zeros by design (Brief 18), not
+   *  a computed handicap. Surfaced in the UI so that's obvious, not silent. */
+  hasIndex: boolean;
 }
 
 export interface ScorecardHoleMeta {

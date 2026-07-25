@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SignInGate } from "../SignInGate";
-import { courseHandicap, playingHandicap, strokesForHoles } from "@/engine/src";
+import { dotsForPlayer } from "@/engine/src";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
 import pageStyles from "../page.module.css";
@@ -127,12 +127,8 @@ async function loadScorecardData(match: MatchRow): Promise<ScorecardData | null>
   function buildPlayer(id: string): ScorecardPlayer | null {
     const player = players?.find((p) => p.id === id);
     if (!player) return null;
-    const handicap = courseHandicap(player.index ?? 0, teeSetup);
-    const dotsByHole = strokesForHoles(
-      playingHandicap(handicap),
-      strokeIndexByHole,
-    );
-    return { id: player.id, name: player.name, dotsByHole };
+    const dotsByHole = dotsForPlayer(player.index, teeSetup, strokeIndexByHole);
+    return { id: player.id, name: player.name, dotsByHole, hasIndex: player.index !== null };
   }
 
   function buildDuo(teamId: string, playerIds: string[]): ScorecardDuo {
