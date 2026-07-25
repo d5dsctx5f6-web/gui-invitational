@@ -8,12 +8,22 @@ export interface PlayerHoleNet {
   roundId: string;
   hole: number;
   net: number;
+  /**
+   * Gross (real) score and that hole's par — both optional. Omit for a pure net running total
+   * (e.g. the scorecard's live per-match totals, which have no use for par-to-date); supply both
+   * when a caller wants gross and net-to-par alongside net (e.g. a trip-wide leaderboard).
+   */
+  gross?: number;
+  par?: number;
 }
 
 export interface IndividualStanding {
   playerId: string;
   cumulativeNet: number;
   holesPlayed: number;
+  /** Sum of `gross`/`par` across this player's entries — 0 if none supplied either. */
+  cumulativeGross: number;
+  parPlayed: number;
 }
 
 export interface DailyLowNet {
@@ -32,10 +42,12 @@ export interface IndividualRaceResult {
 export function computeIndividualRace(
   entries: PlayerHoleNet[],
 ): IndividualRaceResult {
-  const totals = new Map<string, { net: number; holes: number }>();
+  const totals = new Map<string, { net: number; gross: number; par: number; holes: number }>();
   for (const e of entries) {
-    const cur = totals.get(e.playerId) ?? { net: 0, holes: 0 };
+    const cur = totals.get(e.playerId) ?? { net: 0, gross: 0, par: 0, holes: 0 };
     cur.net += e.net;
+    cur.gross += e.gross ?? 0;
+    cur.par += e.par ?? 0;
     cur.holes += 1;
     totals.set(e.playerId, cur);
   }
@@ -46,6 +58,8 @@ export function computeIndividualRace(
     .map(([playerId, v]) => ({
       playerId,
       cumulativeNet: v.net,
+      cumulativeGross: v.gross,
+      parPlayed: v.par,
       holesPlayed: v.holes,
     }))
     .sort((a, b) => a.cumulativeNet - b.cumulativeNet);

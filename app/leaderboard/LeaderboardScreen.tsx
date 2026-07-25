@@ -65,6 +65,7 @@ export interface CourseTeeRow {
   slope: number;
   par: number;
   stroke_index: number[];
+  par_by_hole: number[] | null;
 }
 
 export interface Snapshot {
@@ -118,6 +119,11 @@ function compute(snapshot: Snapshot) {
       (h) => h.round_id === round.id,
     );
 
+    // Brief 16: par-by-hole for net-to-par / gross-to-par display. Falls back to an even split
+    // of the tee's total par across 18 holes if per-hole par isn't set — same fallback Scorecard
+    // already uses for the same column.
+    const parByHole = tee.par_by_hole;
+
     for (const row of roundHoleScores) {
       const dots = dotsByPlayer.get(row.player_id);
       if (!dots) continue;
@@ -126,6 +132,8 @@ function compute(snapshot: Snapshot) {
         roundId: round.id,
         hole: row.hole,
         net: netScore(realScore(row), dots[row.hole - 1]),
+        gross: realScore(row),
+        par: parByHole?.[row.hole - 1] ?? tee.par / 18,
       });
     }
 
@@ -195,7 +203,7 @@ async function fetchSnapshot(): Promise<Snapshot> {
         .select("player_id, round_id, hole, strokes, match_strokes"),
       supabase
         .from("course_tees")
-        .select("id, rating, slope, par, stroke_index"),
+        .select("id, rating, slope, par, stroke_index, par_by_hole"),
     ]);
 
   return {
@@ -221,6 +229,14 @@ function captainName(teams: Team[], players: Player[], teamId: string): string {
 
 function playerName(players: Player[], id: string): string {
   return players.find((p) => p.id === id)?.name ?? "?";
+}
+
+/** Standard golf to-par formatting: even is "E", over uses "+", under uses a real minus sign
+ *  (U+2212, not a hyphen — the mockup's original convention, per Brief 16). */
+function toPar(value: number): string {
+  const rounded = Math.round(value);
+  if (rounded === 0) return "E";
+  return rounded > 0 ? `+${rounded}` : `−${Math.abs(rounded)}`;
 }
 
 export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapshot }) {
@@ -315,22 +331,27 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
             )}
             {race.standings.map((s, i) => {
               const isDailyLow = race.dailyLows.some((dl) => dl.playerIds.includes(s.playerId));
+              const netToPar = s.cumulativeNet - s.parPlayed;
+              const grossToPar = s.cumulativeGross - s.parPlayed;
               return (
                 <div className={styles.row} key={s.playerId}>
                   <div className={`${styles.tile} ${styles.pos}`}>{i + 1}</div>
                   <div className={`${styles.tile} ${styles.name}`}>
                     {playerName(snapshot.players, s.playerId)}
                     {isDailyLow && <span className={styles.lowBadge}>◆</span>}
-                    <span className={styles.nameDetail}>thru {s.holesPlayed}</span>
+                    <span className={styles.nameDetail}>
+                      thru {s.holesPlayed} · gross {toPar(grossToPar)}
+                    </span>
                   </div>
-                  <div className={`${styles.tile} ${styles.pts}`}>
-                    {s.cumulativeNet > 0 ? `+${s.cumulativeNet}` : s.cumulativeNet}
-                  </div>
+                  <div className={`${styles.tile} ${styles.pts}`}>{toPar(netToPar)}</div>
                 </div>
               );
             })}
           </div>
-          <div className={styles.boardfoot}>◆ daily low net · lower is better · ties shown as ties</div>
+          <div className={styles.boardfoot}>
+            Net-to-par · gross-to-par alongside · ◆ daily low net · lower is better · ties shown as
+            ties
+          </div>
         </>
       )}
     </main>

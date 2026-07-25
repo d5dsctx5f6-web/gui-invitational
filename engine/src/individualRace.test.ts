@@ -16,7 +16,7 @@ describe("computeIndividualRace", () => {
     // 4 + (-1) + 0 + 2 = 5
     const result = computeIndividualRace(entries);
     expect(result.standings).toEqual([
-      { playerId: "A", cumulativeNet: 5, holesPlayed: 4 },
+      { playerId: "A", cumulativeNet: 5, cumulativeGross: 0, parPlayed: 0, holesPlayed: 4 },
     ]);
   });
 
@@ -42,7 +42,7 @@ describe("computeIndividualRace", () => {
     expect(() => computeIndividualRace(entries)).not.toThrow();
     const result = computeIndividualRace(entries);
     expect(result.standings).toEqual([
-      { playerId: "A", cumulativeNet: 2, holesPlayed: 3 },
+      { playerId: "A", cumulativeNet: 2, cumulativeGross: 0, parPlayed: 0, holesPlayed: 3 },
     ]);
   });
 
@@ -65,5 +65,29 @@ describe("computeIndividualRace", () => {
       net: netScore(matchScore(row), 0),
     };
     expect(computeIndividualRace([wrongEntry]).standings[0].cumulativeNet).toBe(5);
+  });
+
+  it("accumulates gross and par-played alongside net, for callers that supply them (Brief 16)", () => {
+    // Cam Delaney hand-check from the Brief 16 bug report: par 4/4/5, strokes 5/5/6, 0 dots.
+    const entries: PlayerHoleNet[] = [
+      { playerId: "Cam", roundId: "R1", hole: 1, net: 5, gross: 5, par: 4 },
+      { playerId: "Cam", roundId: "R1", hole: 2, net: 5, gross: 5, par: 4 },
+      { playerId: "Cam", roundId: "R1", hole: 3, net: 6, gross: 6, par: 5 },
+    ];
+    const result = computeIndividualRace(entries);
+    expect(result.standings).toEqual([
+      { playerId: "Cam", cumulativeNet: 16, cumulativeGross: 16, parPlayed: 13, holesPlayed: 3 },
+    ]);
+    // Net-to-par: 16 - 13 = +3, not the raw +16 the bug report flagged.
+    expect(result.standings[0].cumulativeNet - result.standings[0].parPlayed).toBe(3);
+  });
+
+  it("defaults gross/par to 0 when entries omit them (existing scorecard-only callers)", () => {
+    const entries: PlayerHoleNet[] = [
+      { playerId: "A", roundId: "R1", hole: 1, net: 4 },
+    ];
+    const result = computeIndividualRace(entries);
+    expect(result.standings[0].cumulativeGross).toBe(0);
+    expect(result.standings[0].parPlayed).toBe(0);
   });
 });

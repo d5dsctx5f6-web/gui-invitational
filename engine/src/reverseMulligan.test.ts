@@ -61,7 +61,7 @@ describe("the two-score rule: matchScore vs realScore", () => {
       ];
       const individual = computeIndividualRace(individualEntries);
       expect(individual.standings).toEqual([
-        { playerId: "X", cumulativeNet: 3, holesPlayed: 1 },
+        { playerId: "X", cumulativeNet: 3, cumulativeGross: 0, parPlayed: 0, holesPlayed: 1 },
       ]);
     },
   );

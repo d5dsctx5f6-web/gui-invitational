@@ -23,7 +23,7 @@ export default async function LeaderboardPage() {
       supabase
         .from("hole_scores")
         .select("player_id, round_id, hole, strokes, match_strokes"),
-      supabase.from("course_tees").select("id, rating, slope, par, stroke_index"),
+      supabase.from("course_tees").select("id, rating, slope, par, stroke_index, par_by_hole"),
     ]);
 
   const initialSnapshot: Snapshot = {
