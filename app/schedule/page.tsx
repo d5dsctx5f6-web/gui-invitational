@@ -11,6 +11,31 @@ interface ScheduleItem {
   starts_at: string | null;
   notes: string | null;
 }
+interface RoundRow {
+  id: string;
+  date: string;
+  format: string;
+  course_id: string;
+}
+interface MatchRow {
+  round_id: string;
+  team_a_id: string;
+  team_b_id: string;
+  slot: string;
+  tee_time: string | null;
+}
+interface TeamRow {
+  id: string;
+  name: string;
+}
+interface CourseRow {
+  id: string;
+  name: string;
+}
+
+function formatName(format: string): string {
+  return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
+}
 
 function dayLabel(startsAt: string): string {
   return new Date(startsAt).toLocaleDateString("en-US", {
@@ -58,6 +83,24 @@ export default async function SchedulePage() {
     days.get(label)!.push(item);
   }
 
+  // Brief 17 Part C: tee times per round, as their own clearly-labeled section rather than
+  // merged into the day cards above — schedule_items and rounds/matches are different data
+  // shapes (a timestamp vs. a plain date), and matching them into one combined timeline risked
+  // a fragile date-label join for no real benefit over a separate, equally visible section.
+  const [{ data: rounds }, { data: matches }, { data: teams }, { data: courses }] =
+    await Promise.all([
+      supabase.from("rounds").select("id, date, format, course_id").order("date"),
+      supabase.from("matches").select("round_id, team_a_id, team_b_id, slot, tee_time"),
+      supabase.from("teams").select("id, name"),
+      supabase.from("courses").select("id, name"),
+    ]);
+  const roundsList = (rounds ?? []) as RoundRow[];
+  const matchesList = (matches ?? []) as MatchRow[];
+  const teamsList = (teams ?? []) as TeamRow[];
+  const coursesList = (courses ?? []) as CourseRow[];
+  const teamName = (id: string) => teamsList.find((t) => t.id === id)?.name ?? "?";
+  const courseName = (id: string) => coursesList.find((c) => c.id === id)?.name ?? "Unknown course";
+
   return (
     <main className={styles.page}>
       <Link href="/" className={pageStyles.backLink}>
@@ -104,6 +147,32 @@ export default async function SchedulePage() {
           ))}
         </div>
       )}
+
+      {roundsList.map((round) => {
+        const roundMatches = matchesList
+          .filter((m) => m.round_id === round.id)
+          .sort((a, b) => (a.tee_time ?? "").localeCompare(b.tee_time ?? ""));
+        if (roundMatches.length === 0) return null;
+        return (
+          <div className={styles.card} key={round.id}>
+            <h3 className={styles.dayTitle}>
+              Tee times — {courseName(round.course_id)} · {formatName(round.format)}
+            </h3>
+            {roundMatches.map((m, i) => (
+              <div className={styles.eventRow} key={`${m.round_id}-${m.slot}-${i}`}>
+                <div className={styles.eventTime}>
+                  {m.tee_time ? timeLabel(m.tee_time) : "TBD"}
+                </div>
+                <div>
+                  <div className={styles.eventTitle}>
+                    {teamName(m.team_a_id)} v {teamName(m.team_b_id)} — Slot {m.slot}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </main>
   );
 }

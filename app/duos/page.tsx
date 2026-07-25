@@ -84,6 +84,27 @@ export default async function DuosPage({
         .eq("round_id", round.id),
     ]);
 
+  // Brief 17: a real deadline computed from the round's earliest assigned tee time, not just
+  // the date. Fetched separately (same standing pattern as skins_buy_in/season trophies) so a
+  // database that hasn't run 0023 yet still resolves the matches above (which DuosScreen
+  // depends on for pairings) — this fetch failing should only affect the deadline text.
+  const { data: teeTimeRows } = await supabase
+    .from("matches")
+    .select("tee_time")
+    .eq("round_id", round.id);
+  const teeTimes = (teeTimeRows ?? [])
+    .map((m) => m.tee_time)
+    .filter((t): t is string => t !== null)
+    .sort();
+  const earliestTeeTime = teeTimes[0] ?? null;
+  const deadlineText = earliestTeeTime
+    ? (() => {
+        const deadline = new Date(new Date(earliestTeeTime).getTime() - 30 * 60 * 1000);
+        const time = deadline.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        return `Deadline: ${time} — 30 minutes before the round's first tee — not hard-blocked after, but get it in`;
+      })()
+    : `Deadline: 30 minutes before ${round.date}'s first tee — not hard-blocked after, but get it in`;
+
   return (
     <main className={styles.page}>
       <Link href="/" className={pageStyles.backLink}>
@@ -93,10 +114,7 @@ export default async function DuosPage({
         Duo submissions · <b>{roundLabel(round)}</b>
         <span> · {round.date}</span>
       </div>
-      <div className={styles.deadline}>
-        Deadline: 30 minutes before {round.date}&apos;s first tee — not hard-blocked after, but
-        get it in
-      </div>
+      <div className={styles.deadline}>{deadlineText}</div>
 
       {rounds.length > 1 && (
         <div className={styles.roundPicker}>

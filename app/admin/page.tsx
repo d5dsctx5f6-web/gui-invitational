@@ -67,6 +67,7 @@ interface Match {
   team_a_id: string;
   team_b_id: string;
   slot: string;
+  tee_time: string | null;
 }
 interface Course {
   id: string;
@@ -207,6 +208,17 @@ async function loadAdminData() {
     skins_buy_in: buyInByRoundId.get(r.id) ?? null,
   })) as Round[];
 
+  // Same reasoning: tee_time (migration 0023) fetched separately so Matchups still renders
+  // (and every other action on this row still works) on a database that hasn't run it yet.
+  const { data: teeTimes } = await supabase.from("matches").select("id, tee_time");
+  const teeTimeById = new Map<string, string | null>(
+    (teeTimes ?? []).map((t) => [t.id, t.tee_time]),
+  );
+  const matchesList = (matches.data ?? []).map((m) => ({
+    ...m,
+    tee_time: teeTimeById.get(m.id) ?? null,
+  })) as Match[];
+
   // Same reasoning as skins_buy_in above: fetched separately so a database that hasn't run
   // 0020 (the trophy columns) yet still shows the rest of the season list intact.
   const { data: trophies } = await supabase
@@ -241,7 +253,7 @@ async function loadAdminData() {
     return map;
   }
 
-  const matchesByRound = countBy(matches.data ?? [], (m) => m.round_id);
+  const matchesByRound = countBy(matchesList, (m) => m.round_id);
   const holeScoresByRound = countBy(holeScoreRoundIds.data ?? [], (r) => r.round_id);
   const duoSubsByRound = countBy(duoSubmissions.data ?? [], (d) => d.round_id);
   const duoSubsByTeam = countBy(duoSubmissions.data ?? [], (d) => d.team_id);
@@ -252,7 +264,7 @@ async function loadAdminData() {
   const roundsByCourse = countBy(rounds.data ?? [], (r) => r.course_id);
   const teamMembersByTeam = countBy(teamMembers.data ?? [], (m) => m.team_id);
   const matchesByTeam = countBy(
-    (matches.data ?? []).flatMap((m) => [m.team_a_id, m.team_b_id]),
+    matchesList.flatMap((m) => [m.team_a_id, m.team_b_id]),
     (teamId) => teamId,
   );
 
@@ -261,7 +273,7 @@ async function loadAdminData() {
     teams: (teams.data ?? []) as Team[],
     teamMembers: (teamMembers.data ?? []) as TeamMember[],
     rounds: roundsList,
-    matches: (matches.data ?? []) as Match[],
+    matches: matchesList,
     courses: (courses.data ?? []) as Course[],
     courseTees: (courseTees.data ?? []) as CourseTee[],
     challengeBets: (challengeBets.data ?? []) as ChallengeBet[],
@@ -569,6 +581,13 @@ export default async function AdminPage({
                       <option value="A">Slot A</option>
                       <option value="B">Slot B</option>
                     </select>
+                    <input
+                      className={styles.input}
+                      type="datetime-local"
+                      name="teeTime"
+                      defaultValue={toDatetimeLocal(m.tee_time)}
+                      title="Tee time"
+                    />
                     <button className={styles.btn} type="submit">
                       Save
                     </button>
@@ -610,6 +629,12 @@ export default async function AdminPage({
                   <option value="A">Slot A</option>
                   <option value="B">Slot B</option>
                 </select>
+                <input
+                  className={styles.input}
+                  type="datetime-local"
+                  name="teeTime"
+                  title="Tee time (optional)"
+                />
                 <button className={styles.btn} type="submit">
                   Add matchup
                 </button>

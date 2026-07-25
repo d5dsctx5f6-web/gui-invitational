@@ -23,6 +23,7 @@ interface MatchRow {
   team_a_id: string;
   team_b_id: string;
   slot: string;
+  tee_time: string | null;
 }
 
 interface DuoSubmissionRow {
@@ -169,6 +170,7 @@ async function loadScorecardData(match: MatchRow): Promise<ScorecardData | null>
     courseName: course?.name ?? "Unknown course",
     format: round.format,
     date: round.date,
+    teeTime: match.tee_time,
     duoA: buildDuo(match.team_a_id, teamAPlayerIds),
     duoB: buildDuo(match.team_b_id, teamBPlayerIds),
     holes,
@@ -238,10 +240,22 @@ export default async function ScorePage({
     );
   }
 
-  const { data: allMatches } = await supabase
+  const { data: allMatchesCore } = await supabase
     .from("matches")
     .select("id, round_id, team_a_id, team_b_id, slot");
-  const myMatches: MatchRow[] = (allMatches ?? []).filter(
+  // Decoupled (same standing pattern as skins_buy_in/season trophies): tee_time (migration
+  // 0023) fetched separately so match-based routing keeps working on a database that hasn't
+  // run it yet — this query feeding identity resolution must never fail as a whole over one
+  // optional column.
+  const { data: teeTimes } = await supabase.from("matches").select("id, tee_time");
+  const teeTimeById = new Map(
+    (teeTimes ?? []).map((t) => [t.id, t.tee_time as string | null]),
+  );
+  const allMatches: MatchRow[] = (allMatchesCore ?? []).map((m) => ({
+    ...m,
+    tee_time: teeTimeById.get(m.id) ?? null,
+  }));
+  const myMatches: MatchRow[] = allMatches.filter(
     (m) => myTeamIds.includes(m.team_a_id) || myTeamIds.includes(m.team_b_id),
   );
   const myRoundIds = [...new Set(myMatches.map((m) => m.round_id))];

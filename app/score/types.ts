@@ -44,6 +44,8 @@ export interface ScorecardData {
   courseName: string;
   format: string;
   date: string;
+  /** This specific matchup's tee time (Brief 17), null if not yet assigned. */
+  teeTime: string | null;
   duoA: ScorecardDuo;
   duoB: ScorecardDuo;
   holes: ScorecardHoleMeta[];

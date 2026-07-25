@@ -154,19 +154,29 @@ export async function upsertMatch(formData: FormData) {
   const teamAId = String(formData.get("teamAId") ?? "");
   const teamBId = String(formData.get("teamBId") ?? "");
   const slot = String(formData.get("slot") ?? "");
+  const teeTimeRaw = String(formData.get("teeTime") ?? "").trim();
   if (!roundId || !teamAId || !teamBId || !["A", "B"].includes(slot)) {
     flashError("Round, both teams, and slot are required");
   }
   if (teamAId === teamBId) flashError("A team can't play itself");
 
   const supabase = createAdminClient();
-  const row = { round_id: roundId, team_a_id: teamAId, team_b_id: teamBId, slot };
+  const row = {
+    round_id: roundId,
+    team_a_id: teamAId,
+    team_b_id: teamBId,
+    slot,
+    tee_time: teeTimeRaw === "" ? null : new Date(teeTimeRaw).toISOString(),
+  };
   const { error } = matchId
     ? await supabase.from("matches").update(row).eq("id", matchId)
     : await supabase.from("matches").insert(row);
   if (error) flashError(error.message);
 
   revalidatePath("/admin");
+  revalidatePath("/score");
+  revalidatePath("/duos");
+  revalidatePath("/schedule");
   flash(matchId ? "Matchup updated" : "Matchup added");
 }
 

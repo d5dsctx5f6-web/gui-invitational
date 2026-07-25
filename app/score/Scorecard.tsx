@@ -89,6 +89,15 @@ function formatName(format: string): string {
   return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
 }
 
+/** Brief 17: this matchup's own tee time, formatted for the header — null if not yet assigned. */
+function formatTeeTime(teeTime: string | null): string | null {
+  if (!teeTime) return null;
+  return new Date(teeTime).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function formatSegment(
   seg: SegmentState,
   aName: string,
@@ -404,6 +413,7 @@ export function Scorecard({
       </Link>
       <div className={styles.roundContext}>
         {data.courseName} · {formatName(data.format)} · {data.date}
+        {formatTeeTime(data.teeTime) && ` · ${formatTeeTime(data.teeTime)} tee`}
       </div>
       <div className={styles.eyebrow}>
         Scorekeeper · <b>{aName} v {bName}</b>
