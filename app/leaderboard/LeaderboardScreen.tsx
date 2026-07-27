@@ -236,6 +236,7 @@ function toPar(value: number): string {
 export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapshot }) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [view, setView] = useState<"cup" | "individual">("cup");
+  const [raceSort, setRaceSort] = useState<"net" | "gross">("net");
 
   async function refetch() {
     setSnapshot(await fetchSnapshot());
@@ -248,6 +249,16 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
   const { ranking, race } = useMemo(() => compute(snapshot), [snapshot]);
 
   const totalsByTeam = new Map(ranking.totals.map((t) => [t.teamId, t]));
+
+  // Same list Brief 16 already computes (net-to-par and gross-to-par both present on every
+  // standing) — re-sorted, not recomputed. Equal values are left equal (no forced tie-break),
+  // same honesty rule the engine's own net sort already follows.
+  const sortedStandings = useMemo(() => {
+    if (raceSort === "net") return race.standings;
+    return [...race.standings].sort(
+      (a, b) => a.cumulativeGross - a.parPlayed - (b.cumulativeGross - b.parPlayed),
+    );
+  }, [race.standings, raceSort]);
 
   return (
     <main className={styles.page}>
@@ -319,11 +330,25 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
         </>
       ) : (
         <>
+          <div className={styles.tabs}>
+            <button
+              className={`${styles.tab} ${raceSort === "net" ? styles.tabActive : ""}`}
+              onClick={() => setRaceSort("net")}
+            >
+              Net
+            </button>
+            <button
+              className={`${styles.tab} ${raceSort === "gross" ? styles.tabActive : ""}`}
+              onClick={() => setRaceSort("gross")}
+            >
+              Gross
+            </button>
+          </div>
           <div className={styles.board}>
             {race.standings.length === 0 && (
               <div className={styles.hint}>No scores posted yet.</div>
             )}
-            {race.standings.map((s, i) => {
+            {sortedStandings.map((s, i) => {
               const isDailyLow = race.dailyLows.some((dl) => dl.playerIds.includes(s.playerId));
               const netToPar = s.cumulativeNet - s.parPlayed;
               const grossToPar = s.cumulativeGross - s.parPlayed;
