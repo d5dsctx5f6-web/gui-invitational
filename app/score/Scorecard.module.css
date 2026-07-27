@@ -58,16 +58,129 @@
   color: var(--tile2);
 }
 
-.seg b {
-  display: block;
-  font-size: 12px;
+/* Brief 23 Part C: a Ryder-Cup-broadcast-style badge — arrow + margin, one glance, no reading a
+   sentence. Color is the signed-in player's own duo's fortune (segAccent in Scorecard.tsx), not
+   duo A/B literally. */
+.segBadge {
+  font-size: 15px;
+  font-weight: 700;
   color: var(--cream);
-  font-weight: 600;
-  margin-top: 2px;
+  margin-top: 3px;
+  line-height: 1;
 }
 
-.segClosed b {
+.segSub {
+  font-size: 9px;
+  color: var(--tile2);
+  margin-top: 3px;
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.segGood {
+  border-color: var(--gold);
+}
+
+.segGood .segBadge {
   color: var(--gold);
+}
+
+.segBad {
+  border-color: var(--red);
+}
+
+.segBad .segBadge {
+  color: var(--red);
+}
+
+.scorecardToggle {
+  width: 100%;
+  border: 2px solid var(--seam);
+  background: var(--board2);
+  color: var(--gold);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.holes {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 3px;
+}
+
+.hole {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  font-size: 9px;
+  background: var(--spruce);
+  border: 1px solid var(--seam2);
+  color: var(--tile2);
+}
+
+.hole b {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.holeW {
+  background: var(--gold);
+  color: var(--spruce);
+  border-color: var(--gold);
+}
+
+.holeL {
+  background: var(--red);
+  color: var(--white);
+  border-color: var(--red);
+}
+
+.holeH {
+  background: var(--seam);
+  color: var(--cream);
+}
+
+.stripkey {
+  margin-top: 6px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tile2);
+  text-align: center;
+}
+
+/* Brief 23 Part D: the headline info on an already-posted hole — bigger and louder than
+   .editingBadge, per Chris's explicit ask that this not be a footnote. */
+.winnerBanner {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.winnerBannerGood {
+  background: var(--gold);
+  color: var(--spruce);
+}
+
+.winnerBannerBad {
+  background: var(--red);
+  color: var(--white);
+}
+
+.winnerBannerEven {
+  background: var(--seam);
+  color: var(--cream);
 }
 
 .holehead {

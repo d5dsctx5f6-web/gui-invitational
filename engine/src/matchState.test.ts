@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeMatchState,
   countHolesWon,
+  resolveHoleResults,
   type DuoHoleNets,
   type HoleWinner,
 } from "./matchState";
@@ -126,6 +127,39 @@ describe("computeMatchState", () => {
     expect(state.overall18.status).toBe("closed");
     expect(state.overall18.winner).toBe("B");
     expect(state.totalPoints).toEqual({ a: 0, b: 3 });
+  });
+});
+
+describe("resolveHoleResults", () => {
+  it("returns the same per-hole winner computeMatchState already resolves internally", () => {
+    const results: HoleWinner[] = ["A", "B", "halved", "A"];
+    expect(resolveHoleResults(holes(results))).toEqual([
+      { hole: 1, winner: "A" },
+      { hole: 2, winner: "B" },
+      { hole: 3, winner: "halved" },
+      { hole: 4, winner: "A" },
+    ]);
+  });
+
+  it("a hole with no scores yet resolves to a null winner, not a crash", () => {
+    expect(resolveHoleResults([{ hole: 1, duoANet: [], duoBNet: [] }])).toEqual([
+      { hole: 1, winner: null },
+    ]);
+  });
+
+  it("count-agnostic, same as the internal resolution: one duo down to a single ball still resolves", () => {
+    expect(resolveHoleResults([{ hole: 1, duoANet: [4], duoBNet: [3, 5] }])).toEqual([
+      { hole: 1, winner: "B" },
+    ]);
+  });
+
+  it("returns results in hole order regardless of input order", () => {
+    const outOfOrder: DuoHoleNets[] = [
+      { hole: 3, duoANet: [3], duoBNet: [4] },
+      { hole: 1, duoANet: [4], duoBNet: [3] },
+      { hole: 2, duoANet: [4], duoBNet: [4] },
+    ];
+    expect(resolveHoleResults(outOfOrder).map((r) => r.hole)).toEqual([1, 2, 3]);
   });
 });
 

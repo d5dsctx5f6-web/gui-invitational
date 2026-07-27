@@ -91,6 +91,24 @@ function computeSegment(
   return { status: finished ? "closed" : "in_progress", holesUp, thru, winner, points };
 }
 
+export interface HoleResult {
+  hole: number;
+  /** Null if neither duo has a resolvable score yet (mirrors resolveHole's own null case). */
+  winner: HoleWinner | null;
+}
+
+/**
+ * Per-hole win/loss/halve results, hole order — the same resolveHole() already computed
+ * internally by computeSegment/countHolesWon, just surfaced (Brief 23 Part A: this was already
+ * correct and tested via those two callers; nothing new is computed here).
+ */
+export function resolveHoleResults(holes: DuoHoleNets[]): HoleResult[] {
+  return holes
+    .slice()
+    .sort((x, y) => x.hole - y.hole)
+    .map((h) => ({ hole: h.hole, winner: resolveHole(h.duoANet, h.duoBNet) }));
+}
+
 /**
  * Outright holes won per duo (halves excluded) — feeds the standings "total individual
  * holes won" tiebreaker (Addendum A). Reuses the same per-hole resolution as match state.

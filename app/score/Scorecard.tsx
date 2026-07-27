@@ -8,8 +8,10 @@ import {
   matchScore,
   netScore,
   realScore,
+  resolveHoleResults,
   reverseMulliganStatus,
   type DuoHoleNets,
+  type HoleWinner,
   type PlayerHoleNet,
   type SegmentState,
 } from "@/engine/src";
@@ -98,17 +100,25 @@ function formatTeeTime(teeTime: string | null): string | null {
   });
 }
 
-function formatSegment(
-  seg: SegmentState,
-  aName: string,
-  bName: string,
-): string {
-  if (seg.holesUp === 0) {
-    return seg.status === "closed" ? "Halved" : `All square · thru ${seg.thru}`;
-  }
-  const leader = seg.holesUp > 0 ? aName : bName;
-  const suffix = seg.status === "closed" ? "" : ` · thru ${seg.thru}`;
-  return `${leader} ${Math.abs(seg.holesUp)}UP${suffix}`;
+type Accent = "good" | "bad" | "even";
+
+/** Brief 23 Part C: a segment's fortune from the signed-in player's own duo perspective —
+ *  "good" colors gold (my duo up or won), "bad" colors red (opposing duo up or won), "even" is
+ *  neutral (all square or halved). Distinct from A/B, which don't mean anything to a player
+ *  glancing at their own screen. */
+function segAccent(seg: SegmentState, myDuo: "A" | "B" | null): Accent {
+  if (myDuo === null || seg.holesUp === 0) return "even";
+  const aFavored = seg.holesUp > 0;
+  const myFavored = myDuo === "A" ? aFavored : !aFavored;
+  return myFavored ? "good" : "bad";
+}
+
+/** Brief 23 Parts B/D: W/L/H from the signed-in player's own duo perspective — null if there's
+ *  no determinable result yet (mirrors resolveHoleResults' own null case) or no signed-in duo. */
+function resultLabel(winner: HoleWinner | null, myDuo: "A" | "B" | null): "W" | "L" | "H" | null {
+  if (winner === null || myDuo === null) return null;
+  if (winner === "halved") return "H";
+  return winner === myDuo ? "W" : "L";
 }
 
 export function Scorecard({
@@ -132,6 +142,10 @@ export function Scorecard({
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // Brief 23 Part B: the full hole-by-hole breakdown + Running Totals, tucked away by default
+  // so the entry screen stays uncluttered — revealed on demand, distinct from Part C's always-on
+  // compact indicator below.
+  const [scorecardOpen, setScorecardOpen] = useState(false);
 
   const [rmEvents, setRmEvents] = useState<ScorecardReverseMulligan[]>(
     data.reverseMulligans,
@@ -212,6 +226,9 @@ export function Scorecard({
   // different reason (only the captain may submit picks) — that scoping doesn't apply here.
   const isDuoA = currentPlayerId !== null && data.duoA.players.some((p) => p.id === currentPlayerId);
   const isDuoB = currentPlayerId !== null && data.duoB.players.some((p) => p.id === currentPlayerId);
+  // Brief 23: which duo the signed-in player is viewing from — drives the up/down indicator
+  // (Part C), the hole-by-hole strip (Part B), and the winner banner (Part D), all consistently.
+  const myDuo: "A" | "B" | null = isDuoA ? "A" : isDuoB ? "B" : null;
   const callingTeamId = isDuoA ? data.duoA.teamId : isDuoB ? data.duoB.teamId : null;
   const callingTeamName = isDuoA ? data.duoA.teamName : isDuoB ? data.duoB.teamName : null;
   const opposingPlayers = isDuoA ? data.duoB.players : isDuoB ? data.duoA.players : [];
@@ -269,8 +286,11 @@ export function Scorecard({
     await refetchRmEvents();
   }
 
-  const matchState = useMemo(() => {
-    const holes: DuoHoleNets[] = data.holes.map((h) => {
+  // Brief 23 Part A: computeMatchState() and resolveHoleResults() both derive from the same
+  // per-hole net scores — shared here so the F9/B9/18 segments (Part C) and the hole-by-hole
+  // W/L/H strip (Part B/D) can never drift from each other.
+  const duoHoleNets = useMemo((): DuoHoleNets[] => {
+    return data.holes.map((h) => {
       const netFor = (players: ScorecardPlayer[]) =>
         players
           .map((p) => {
@@ -287,8 +307,10 @@ export function Scorecard({
         duoBNet: netFor(data.duoB.players),
       };
     });
-    return computeMatchState(holes);
   }, [postedScores, data]);
+
+  const matchState = useMemo(() => computeMatchState(duoHoleNets), [duoHoleNets]);
+  const holeResults = useMemo(() => resolveHoleResults(duoHoleNets), [duoHoleNets]);
 
   const runningTotals = useMemo(() => {
     const grossByPlayer = new Map<string, number>();
@@ -323,6 +345,8 @@ export function Scorecard({
   const isEditingExisting = allPlayers.every((p) =>
     postedScores.some((s) => s.playerId === p.id && s.hole === currentHole),
   );
+  // Brief 23 Part D: this specific hole's winner, if determinable — feeds the prominent banner.
+  const currentHoleWinner = holeResults.find((h) => h.hole === currentHole)?.winner ?? null;
 
   function usedOnOtherHole(
     playerId: string,
@@ -420,6 +444,7 @@ export function Scorecard({
         Scorekeeper · <b>{aName} v {bName}</b>
       </div>
 
+      {/* Brief 23 Part C: always-on, compact — a glance tells you who's up, no tapping. */}
       <div className={styles.segs}>
         {(
           [
@@ -427,16 +452,91 @@ export function Scorecard({
             ["B9", matchState.back9],
             ["18", matchState.overall18],
           ] as const
-        ).map(([label, seg]) => (
-          <div
-            key={label}
-            className={`${styles.seg} ${seg.status === "closed" ? styles.segClosed : ""}`}
-          >
-            {label}
-            <b>{formatSegment(seg, aName, bName)}</b>
-          </div>
-        ))}
+        ).map(([label, seg]) => {
+          const accent = segAccent(seg, myDuo);
+          return (
+            <div
+              key={label}
+              className={`${styles.seg} ${accent === "good" ? styles.segGood : accent === "bad" ? styles.segBad : ""}`}
+            >
+              {label}
+              <div className={styles.segBadge}>
+                {accent === "even"
+                  ? seg.status === "closed"
+                    ? "AS"
+                    : "—"
+                  : `${accent === "good" ? "▲" : "▼"} ${Math.abs(seg.holesUp)}`}
+              </div>
+              <div className={styles.segSub}>
+                {seg.status === "closed" ? "Closed" : `thru ${seg.thru}`}
+              </div>
+            </div>
+          );
+        })}
       </div>
+
+      {/* Brief 23 Part B: tucked away by default — the full breakdown, on demand. */}
+      <button
+        type="button"
+        className={styles.scorecardToggle}
+        onClick={() => setScorecardOpen((v) => !v)}
+      >
+        {scorecardOpen ? "▴" : "▾"} Scorecard
+      </button>
+
+      {scorecardOpen && (
+        <div className={styles.card}>
+          <div className={styles.cardhead}>
+            <h2>Hole by hole</h2>
+            <div className={styles.meta}>from {myDuo === "B" ? bName : aName}&apos;s side</div>
+          </div>
+          {holeResults.some((h) => h.winner !== null) ? (
+            <>
+              <div className={styles.holes}>
+                {holeResults
+                  .filter((h) => h.winner !== null)
+                  .map((h) => {
+                    const label = resultLabel(h.winner, myDuo);
+                    return (
+                      <div
+                        key={h.hole}
+                        className={`${styles.hole} ${
+                          label === "W"
+                            ? styles.holeW
+                            : label === "L"
+                              ? styles.holeL
+                              : styles.holeH
+                        }`}
+                      >
+                        <b>{h.hole}</b>
+                        {label === "H" ? "½" : label}
+                      </div>
+                    );
+                  })}
+              </div>
+              <div className={styles.stripkey}>W won · L lost · ½ halved</div>
+            </>
+          ) : (
+            <div className={styles.hint}>No holes decided yet.</div>
+          )}
+
+          <div className={styles.cardhead} style={{ marginTop: 14 }}>
+            <h2>Running totals</h2>
+            <div className={styles.meta}>thru · gross · net</div>
+          </div>
+          {runningTotals.map((t) => (
+            <div className={styles.totalsRow} key={t.playerId}>
+              <span className={styles.totalsName}>
+                {t.name}
+                {!t.hasIndex && <span className={styles.noIndexNote}> · no index</span>}
+              </span>
+              <span className={styles.totalsThru}>thru {t.holesPlayed}</span>
+              <span className={styles.totalsVal}>{t.gross}</span>
+              <span className={styles.totalsVal}>{t.net}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className={styles.holehead}>
         <div className={styles.bignum}>{currentHole}</div>
@@ -472,6 +572,31 @@ export function Scorecard({
           Hole {currentHole + 1} →
         </button>
       </div>
+
+      {/* Brief 23 Part D: the headline info on an already-posted hole — more prominent than the
+          small "already posted" badge below, per Chris's explicit ask. Only when there's a real,
+          determinable result; a hole with no score yet shows nothing. */}
+      {isEditingExisting &&
+        currentHoleWinner !== null &&
+        (() => {
+          const label = resultLabel(currentHoleWinner, myDuo);
+          const winnerName = currentHoleWinner === "A" ? aName : currentHoleWinner === "B" ? bName : null;
+          return (
+            <div
+              className={`${styles.winnerBanner} ${
+                label === "W"
+                  ? styles.winnerBannerGood
+                  : label === "L"
+                    ? styles.winnerBannerBad
+                    : styles.winnerBannerEven
+              }`}
+            >
+              {currentHoleWinner === "halved"
+                ? `Hole ${currentHole} halved`
+                : `${winnerName} won hole ${currentHole}`}
+            </div>
+          );
+        })()}
 
       {successMessage && (
         <div className={styles.success} role="status">
@@ -699,24 +824,6 @@ export function Scorecard({
           </div>
         </div>
       )}
-
-      <div className={styles.card}>
-        <div className={styles.cardhead}>
-          <h2>Running totals</h2>
-          <div className={styles.meta}>thru · gross · net</div>
-        </div>
-        {runningTotals.map((t) => (
-          <div className={styles.totalsRow} key={t.playerId}>
-            <span className={styles.totalsName}>
-              {t.name}
-              {!t.hasIndex && <span className={styles.noIndexNote}> · no index</span>}
-            </span>
-            <span className={styles.totalsThru}>thru {t.holesPlayed}</span>
-            <span className={styles.totalsVal}>{t.gross}</span>
-            <span className={styles.totalsVal}>{t.net}</span>
-          </div>
-        ))}
-      </div>
 
       <button className={styles.postbtn} disabled={posting} onClick={postHole}>
         {posting ? "Posting…" : `Post hole ${currentHole}`}
