@@ -173,6 +173,13 @@ export function MoneyScreen({
     [combinedSkinsPayouts, settledBets],
   );
 
+  // Brief 24 Part C: the blended net total (ledger, above) is unchanged and stays the one
+  // settle-up number — this is purely a by-source breakdown for display. runningLedger() with an
+  // empty skins map is exactly the bets' own contribution, since the function only ever adds
+  // skins once and then adds/subtracts bet stakes on top — calling it this way twice and reading
+  // both parts is mathematically identical to the blended total, no engine change needed.
+  const betOnlyLedger = useMemo(() => runningLedger({}, settledBets), [settledBets]);
+
   const selectedRound = rounds.find((r) => r.id === selectedRoundId)!;
   const selected = skinsByRound.get(selectedRoundId)!;
   const iAmIn = selected.entrantIds.includes(currentPlayerId);
@@ -299,15 +306,39 @@ export function MoneyScreen({
         ) : (
           Object.entries(ledger)
             .sort((a, b) => b[1] - a[1])
-            .map(([playerId, net]) => (
-              <div className={styles.skinRow} key={playerId}>
-                <span>{playerName(players, playerId)}</span>
-                <span className={net >= 0 ? styles.moneyUp : styles.moneyDown}>
-                  {net >= 0 ? "+" : ""}
-                  {net.toFixed(2)}
-                </span>
-              </div>
-            ))
+            .map(([playerId, net]) => {
+              // Brief 24 Part C: the blended net (below) stays the one settle-up number — this
+              // breakdown is purely so the source of that number is scannable at a glance.
+              const skinsAmt = combinedSkinsPayouts[playerId] ?? 0;
+              const betsAmt = betOnlyLedger[playerId] ?? 0;
+              return (
+                <div className={styles.ledgerEntry} key={playerId}>
+                  <div className={styles.ledgerRow}>
+                    <span>{playerName(players, playerId)}</span>
+                    <span className={net >= 0 ? styles.moneyUp : styles.moneyDown}>
+                      {net >= 0 ? "+" : ""}
+                      {net.toFixed(2)}
+                    </span>
+                  </div>
+                  {(skinsAmt !== 0 || betsAmt !== 0) && (
+                    <div className={styles.ledgerBreakdown}>
+                      {skinsAmt !== 0 && (
+                        <span className={styles.ledgerSkins}>
+                          Skins {skinsAmt >= 0 ? "+" : ""}
+                          {skinsAmt.toFixed(2)}
+                        </span>
+                      )}
+                      {betsAmt !== 0 && (
+                        <span className={styles.ledgerBets}>
+                          Bets {betsAmt >= 0 ? "+" : ""}
+                          {betsAmt.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
         )}
       </div>
     </>

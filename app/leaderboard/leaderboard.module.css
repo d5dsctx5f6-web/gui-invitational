@@ -139,3 +139,55 @@
   color: var(--tile2);
   text-align: center;
 }
+
+/* Brief 24 Part A: "Sunday, as it stands" card — same card language as money.module.css. */
+.card {
+  background: var(--board2);
+  border: 2px solid var(--seam);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cardhead h2 {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 500;
+}
+
+.meta {
+  font-size: 10px;
+  color: var(--tile2);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.betterms {
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  color: var(--cream);
+}
+
+.betterms b {
+  color: var(--gold);
+}
+
+.stripkey {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tile2);
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import pageStyles from "../page.module.css";
 import {
+  computeEarnedPairings,
   computeIndividualRace,
   computeMatchState,
   countHolesWon,
@@ -13,6 +14,7 @@ import {
   rankTeams,
   realScore,
   type DuoHoleNets,
+  type EarnedPairingsResult,
   type PlayerHoleNet,
   type TeamMatchOutcome,
 } from "@/engine/src";
@@ -24,6 +26,8 @@ export interface Round {
   id: string;
   date: string;
   default_tee_id: string | null;
+  /** Fixed by day per Rulebook v1.6: shamble = Saturday, four_ball = Sunday, always (Brief 17). */
+  format: string;
 }
 export interface Team {
   id: string;
@@ -97,6 +101,11 @@ function duoPlayerIds(
 function compute(snapshot: Snapshot) {
   const teeById = new Map(snapshot.courseTees.map((t) => [t.id, t]));
   const outcomes: TeamMatchOutcome[] = [];
+  // Brief 24 Part A: the Sunday pairings preview must be earned strictly from Saturday's own
+  // outcomes, not the whole-trip cumulative ranking below — once Sunday's own matches start
+  // producing outcomes too, that whole-trip ranking would corrupt the very seeding it's supposed
+  // to preview. Tracked per round so the shamble round's outcomes can be isolated.
+  const outcomesByRound = new Map<string, TeamMatchOutcome[]>();
   const individualEntries: PlayerHoleNet[] = [];
 
   for (const round of snapshot.rounds) {
@@ -164,28 +173,42 @@ function compute(snapshot: Snapshot) {
 
       const state = computeMatchState(holes);
       const holesWon = countHolesWon(holes);
-      outcomes.push({
+      const outcome: TeamMatchOutcome = {
         teamAId: match.team_a_id,
         teamBId: match.team_b_id,
         points: state.totalPoints,
         holesWon,
-      });
+      };
+      outcomes.push(outcome);
+      const forRound = outcomesByRound.get(round.id) ?? [];
+      forRound.push(outcome);
+      outcomesByRound.set(round.id, forRound);
     }
   }
 
-  const ranking = rankTeams(
-    snapshot.teams.map((t) => t.id),
-    outcomes,
-  );
+  const teamIds = snapshot.teams.map((t) => t.id);
+  const ranking = rankTeams(teamIds, outcomes);
   const race = computeIndividualRace(individualEntries);
-  return { ranking, race };
+
+  // Brief 24 Part A: computeEarnedPairings() itself is unchanged — this is display-only usage.
+  // It requires a clean 1-4 seed order or throws, so guard on having at least 4 teams before
+  // calling it at all; a genuine seeding tie is its own valid, non-throwing "chipOffRequired"
+  // result, surfaced as-is, never fabricated into a fake order.
+  const shambleRound = snapshot.rounds.find((r) => r.format === "shamble");
+  let earnedPairings: EarnedPairingsResult | null = null;
+  if (shambleRound && teamIds.length >= 4) {
+    const saturdayRanking = rankTeams(teamIds, outcomesByRound.get(shambleRound.id) ?? []);
+    earnedPairings = computeEarnedPairings(saturdayRanking);
+  }
+
+  return { ranking, race, shambleRound, earnedPairings };
 }
 
 async function fetchSnapshot(): Promise<Snapshot> {
   const supabase = createClient();
   const [rounds, teams, players, matches, duoSubmissions, holeScores, courseTees] =
     await Promise.all([
-      supabase.from("rounds").select("id, date, default_tee_id").order("date"),
+      supabase.from("rounds").select("id, date, default_tee_id, format").order("date"),
       supabase.from("teams").select("id, name, captain_player_id"),
       supabase.from("players").select("id, name, index"),
       supabase.from("matches").select("id, round_id, team_a_id, team_b_id, slot"),
@@ -246,7 +269,10 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
   useRealtimeRefetch("duo_submissions", null, refetch);
   useRealtimeRefetch("matches", null, refetch);
 
-  const { ranking, race } = useMemo(() => compute(snapshot), [snapshot]);
+  const { ranking, race, shambleRound, earnedPairings } = useMemo(
+    () => compute(snapshot),
+    [snapshot],
+  );
 
   const totalsByTeam = new Map(ranking.totals.map((t) => [t.teamId, t]));
 
@@ -327,6 +353,41 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
           <div className={styles.boardfoot}>
             Ties resolved by head-to-head, then holes won · anything still tied is a chip-off
           </div>
+
+          {/* Brief 24 Part A: a preview only — Chris still creates and locks Sunday's real
+              matchups in admin himself; this never writes anything. */}
+          {shambleRound && (
+            <div className={styles.card}>
+              <div className={styles.cardhead}>
+                <h2>Sunday, as it stands</h2>
+                <div className={styles.meta}>earned pairings</div>
+              </div>
+              {earnedPairings === null ? (
+                <div className={styles.hint}>Not yet available — teams aren&apos;t fully set up.</div>
+              ) : earnedPairings.status === "chipOffRequired" ? (
+                <div className={styles.hint}>
+                  Seeds tied at {earnedPairings.affectedSeeds.join("/")}:{" "}
+                  {earnedPairings.tiedTeamIds.map((id) => teamName(snapshot.teams, id)).join(" vs ")}
+                  {" "}— chip-off required to lock the seed.
+                </div>
+              ) : (
+                <div className={styles.betterms}>
+                  {earnedPairings.matchups.map((m) => (
+                    <div key={`${m.seedA}-${m.seedB}`}>
+                      {m.seedA}
+                      <sup>{m.seedA === 1 ? "st" : "rd"}</sup> v {m.seedB}
+                      <sup>{m.seedB === 2 ? "nd" : "th"}</sup> —{" "}
+                      <b>{teamName(snapshot.teams, m.teamAId)}</b> v{" "}
+                      <b>{teamName(snapshot.teams, m.teamBId)}</b>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className={styles.stripkey}>
+                Projected from today&apos;s standings — locks tonight after the last putt
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <>

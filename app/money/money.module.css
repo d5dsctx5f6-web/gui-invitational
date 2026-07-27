@@ -21,26 +21,31 @@
   font-weight: 500;
 }
 
+/* Brief 24 Part B: was a thin, easy-to-miss text row — now the same "big, near the top" weight
+   as the home page's primary leaderboard button (page.module.css .leaderboardLink), so a player
+   immediately sees which round's money they're looking at and can't overlook the switch. */
 .roundPicker {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .roundLink {
   flex: 1;
+  box-sizing: border-box;
   text-align: center;
-  border: 1px solid var(--seam);
+  border: 2px solid var(--gold);
   border-radius: 4px;
-  padding: 8px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--tile2);
+  padding: 14px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
 }
 
 .roundLinkActive {
-  border-color: var(--gold);
-  color: var(--gold);
-  font-weight: 600;
+  background: var(--gold);
+  color: var(--spruce);
 }
 
 .card {
@@ -137,6 +142,45 @@
 
 .skinRow:last-child {
   border-bottom: none;
+}
+
+/* Brief 24 Part C: running ledger — one entry per player, the blended net on top, an optional
+   by-source breakdown below it. Gold for skins (the color skins amounts already use everywhere
+   in this app), cream for Challenge Ledger bets (this app's other primary text tone) — two
+   colors already load-bearing elsewhere, no new hue introduced. */
+.ledgerEntry {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--seam2);
+}
+
+.ledgerEntry:last-child {
+  border-bottom: none;
+}
+
+.ledgerRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--cream);
+}
+
+.ledgerBreakdown {
+  display: flex;
+  gap: 10px;
+  margin-top: 3px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ledgerSkins {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.ledgerBets {
+  color: var(--cream);
+  font-weight: 600;
 }
 
 .money {

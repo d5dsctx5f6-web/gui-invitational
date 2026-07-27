@@ -11,7 +11,7 @@ export default async function LeaderboardPage() {
 
   const [rounds, teams, players, matches, duoSubmissions, holeScores, courseTees] =
     await Promise.all([
-      supabase.from("rounds").select("id, date, default_tee_id").order("date"),
+      supabase.from("rounds").select("id, date, default_tee_id, format").order("date"),
       supabase.from("teams").select("id, name, captain_player_id"),
       supabase.from("players").select("id, name, index"),
       supabase.from("matches").select("id, round_id, team_a_id, team_b_id, slot"),
