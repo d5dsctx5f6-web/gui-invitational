@@ -239,3 +239,32 @@
   align-items: center;
   gap: 4px;
 }
+
+.holeNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--spruce);
+  border: 1px solid var(--seam);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.holeBignum {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--white);
+  min-width: 26px;
+  text-align: center;
+}
+
+.navbtn {
+  composes: btnGhost;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.navbtnDisabled {
+  opacity: 0.35;
+}

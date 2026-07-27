@@ -393,8 +393,29 @@ export async function correctHoleScore(formData: FormData) {
   const breakfastBall = formData.get("breakfastBall") === "on";
   const mulligan = formData.get("mulligan") === "on";
 
-  if (Number.isNaN(strokes) || strokes < 1) flashError("Strokes must be a positive number");
-  if (matchStrokes !== null && Number.isNaN(matchStrokes)) flashError("Match strokes must be a number");
+  // Brief 20: Corrections is now a round -> match -> hole drill-down. Without carrying this
+  // context through the redirect, every save would bounce back to round 1 / no match / hole 1
+  // — exactly the "wall of rows" friction this brief exists to remove, just relocated to
+  // "re-navigate after every single save" instead. These three are optional (the old flat-list
+  // behavior — redirect straight to /admin — still works if ever called without them).
+  const roundId = formData.get("roundId");
+  const matchId = formData.get("matchId");
+  const hole = formData.get("hole");
+  const returnParams = new URLSearchParams();
+  if (roundId) returnParams.set("round", String(roundId));
+  if (matchId) returnParams.set("cmatch", String(matchId));
+  if (hole) returnParams.set("chole", String(hole));
+
+  function flashHere(kind: "msg" | "err", message: string): never {
+    const params = new URLSearchParams(returnParams);
+    params.set(kind, message);
+    redirect(`/admin?${params.toString()}`);
+  }
+
+  if (Number.isNaN(strokes) || strokes < 1) flashHere("err", "Strokes must be a positive number");
+  if (matchStrokes !== null && Number.isNaN(matchStrokes)) {
+    flashHere("err", "Match strokes must be a number");
+  }
 
   const supabase = createAdminClient();
   const { error } = await supabase
@@ -406,11 +427,11 @@ export async function correctHoleScore(formData: FormData) {
       mulligan,
     })
     .eq("id", id);
-  if (error) flashError(error.message);
+  if (error) flashHere("err", error.message);
 
   revalidatePath("/admin");
   revalidatePath("/score");
-  flash("Score corrected — recomputes everywhere downstream");
+  flashHere("msg", "Score corrected — recomputes everywhere downstream");
 }
 
 // ---------------------------------------------------------------------------

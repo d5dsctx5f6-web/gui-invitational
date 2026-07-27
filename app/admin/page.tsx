@@ -360,6 +360,43 @@ export default async function AdminPage({
   const selectedRoundId = params.round ?? rounds[0]?.id;
   const holeScores = await loadHoleScores(selectedRoundId);
 
+  // Brief 20: Corrections drill-down — round is resolved above (shared with Duo submissions),
+  // match and hole are Corrections-specific query params so they don't collide with `round`.
+  const roundMatches = matches.filter((m) => m.round_id === selectedRoundId);
+  const selectedMatchId =
+    params.cmatch && roundMatches.some((m) => m.id === params.cmatch)
+      ? params.cmatch
+      : roundMatches[0]?.id;
+  const selectedMatch = roundMatches.find((m) => m.id === selectedMatchId);
+  const selectedHole = Math.min(18, Math.max(1, Number(params.chole) || 1));
+
+  // Same duo-slot-resolution insight as /score's routing (Brief 10) and the leaderboard
+  // (Brief 14): a team pairing is two match rows sharing team IDs, disambiguated only by
+  // duo_submissions. Falls back to the full team rosters (both sides) when no submission
+  // exists yet for this round/team, so an already-posted score never becomes unreachable
+  // just because a duo submission is missing or was reset.
+  function matchPlayerIds(match: Match): string[] {
+    const subA = duoSubmissions.find(
+      (d) => d.round_id === match.round_id && d.team_id === match.team_a_id,
+    );
+    const subB = duoSubmissions.find(
+      (d) => d.round_id === match.round_id && d.team_id === match.team_b_id,
+    );
+    const resolved = [...duoSlotPlayerIds(subA, match.slot), ...duoSlotPlayerIds(subB, match.slot)];
+    if (resolved.length > 0) return resolved;
+    return teamMembers
+      .filter((m) => m.team_id === match.team_a_id || m.team_id === match.team_b_id)
+      .map((m) => m.player_id);
+  }
+
+  // Safety net (verification requirement: nothing reachable in the old flat list becomes
+  // unreachable here) — Brief 15 hit exactly this shape of bug once already: stale
+  // hole_scores rows for players not actually part of the round's current match structure.
+  // Any row that doesn't resolve to a player in any of this round's matches still surfaces,
+  // in the same flat form Corrections used before this brief.
+  const matchedPlayerIdsThisRound = new Set(roundMatches.flatMap((m) => matchPlayerIds(m)));
+  const unmatchedHoleScores = holeScores.filter((r) => !matchedPlayerIdsThisRound.has(r.player_id));
+
   const playerName = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
   const courseNameForRound = (round: Round) => courseName(courses, round.course_id);
   const roundLabel = (round: Round) => `${courseNameForRound(round)} — ${formatName(round.format)}`;
@@ -836,48 +873,105 @@ export default async function AdminPage({
         </form>
       </section>
 
-      {/* ---------------- Corrections ---------------- */}
+      {/* ---------------- Corrections (Brief 20: round -> match -> hole drill-down) ---------------- */}
       <section className={styles.section}>
         <div className={styles.sectionTitle}>Corrections</div>
         <div className={styles.hint}>Round:</div>
         <RoundPicker rounds={rounds} courses={courses} selected={selectedRoundId} />
-        {holeScores.length === 0 && (
-          <div className={styles.hint}>No hole scores posted yet for this round.</div>
+        {!selectedRoundId && <div className={styles.hint}>No rounds yet.</div>}
+
+        {selectedRoundId && roundMatches.length === 0 && (
+          <div className={styles.hint}>No matchups set for this round yet.</div>
         )}
-        {holeScores.map((row) => (
-          <form key={row.id} action={correctHoleScore} className={styles.row}>
-            <input type="hidden" name="id" value={row.id} />
-            <span>
-              {playerName(row.player_id)} · hole {row.hole}
-            </span>
-            <span className={styles.inlineForm}>
-              <input
-                className={styles.input}
-                type="number"
-                name="strokes"
-                defaultValue={row.strokes}
-                title="Real strokes"
+
+        {selectedRoundId && roundMatches.length > 0 && (
+          <>
+            <div className={styles.hint}>Match:</div>
+            <div className={styles.inlineForm}>
+              {roundMatches.map((m) => (
+                <a
+                  key={m.id}
+                  href={`/admin?round=${selectedRoundId}&cmatch=${m.id}`}
+                  className={m.id === selectedMatchId ? styles.btn : styles.btnGhost}
+                >
+                  {teamName(teams, m.team_a_id)} v {teamName(teams, m.team_b_id)} — Slot {m.slot}
+                </a>
+              ))}
+            </div>
+          </>
+        )}
+
+        {selectedMatch && (
+          <>
+            <div className={styles.holeNav}>
+              {selectedHole > 1 ? (
+                <a
+                  className={styles.navbtn}
+                  href={`/admin?round=${selectedRoundId}&cmatch=${selectedMatchId}&chole=${selectedHole - 1}`}
+                >
+                  ← Hole {selectedHole - 1}
+                </a>
+              ) : (
+                <span className={`${styles.navbtn} ${styles.navbtnDisabled}`}>← Hole {selectedHole - 1}</span>
+              )}
+              <div className={styles.holeBignum}>{selectedHole}</div>
+              {selectedHole < 18 ? (
+                <a
+                  className={styles.navbtn}
+                  href={`/admin?round=${selectedRoundId}&cmatch=${selectedMatchId}&chole=${selectedHole + 1}`}
+                >
+                  Hole {selectedHole + 1} →
+                </a>
+              ) : (
+                <span className={`${styles.navbtn} ${styles.navbtnDisabled}`}>Hole {selectedHole + 1} →</span>
+              )}
+            </div>
+
+            {matchPlayerIds(selectedMatch).length === 0 && (
+              <div className={styles.hint}>No players resolved for this match yet.</div>
+            )}
+
+            {matchPlayerIds(selectedMatch).map((playerId) => {
+              const row = holeScores.find((r) => r.player_id === playerId && r.hole === selectedHole);
+              if (!row) {
+                return (
+                  <div key={playerId} className={styles.row}>
+                    <span>{playerName(playerId)}</span>
+                    <span className={styles.hint}>not yet posted</span>
+                  </div>
+                );
+              }
+              return (
+                <CorrectionRow
+                  key={row.id}
+                  row={row}
+                  label={playerName(row.player_id)}
+                  roundId={selectedRoundId!}
+                  matchId={selectedMatchId}
+                  hole={selectedHole}
+                />
+              );
+            })}
+          </>
+        )}
+
+        {unmatchedHoleScores.length > 0 && (
+          <>
+            <div className={styles.hint}>
+              Other scores this round not tied to a current matchup (e.g. a reassigned or removed
+              pairing) — still correctable here:
+            </div>
+            {unmatchedHoleScores.map((row) => (
+              <CorrectionRow
+                key={row.id}
+                row={row}
+                label={`${playerName(row.player_id)} · hole ${row.hole}`}
+                roundId={selectedRoundId!}
+                hole={row.hole}
               />
-              <input
-                className={styles.input}
-                type="number"
-                name="matchStrokes"
-                defaultValue={row.match_strokes ?? ""}
-                placeholder="RM match #"
-                title="Match-only strokes (reverse mulligan)"
-              />
-              <label className={styles.checkboxLabel}>
-                <input type="checkbox" name="breakfastBall" defaultChecked={row.breakfast_ball} /> BB
-              </label>
-              <label className={styles.checkboxLabel}>
-                <input type="checkbox" name="mulligan" defaultChecked={row.mulligan} /> Mull
-              </label>
-              <button className={styles.btn} type="submit">
-                Save
-              </button>
-            </span>
-          </form>
-        ))}
+            ))}
+          </>
+        )}
       </section>
 
       {/* ---------------- Challenge Ledger ---------------- */}
@@ -1119,8 +1213,73 @@ function teamName(teams: Team[], teamId: string) {
   return teams.find((t) => t.id === teamId)?.name ?? "?";
 }
 
+function duoSlotPlayerIds(sub: DuoSubmissionRow | undefined, slot: string): string[] {
+  if (!sub) return [];
+  const [p1, p2] =
+    slot === "A"
+      ? [sub.duo_a_player_1, sub.duo_a_player_2]
+      : [sub.duo_b_player_1, sub.duo_b_player_2];
+  return [p1, p2].filter((id): id is string => id !== null);
+}
+
 function formatName(format: string) {
   return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
+}
+
+/**
+ * One hole_scores row's correction form — same fields as before Brief 20 (strokes, RM match
+ * strokes, breakfast ball, mulligan). roundId/matchId/hole ride along as hidden fields purely so
+ * `correctHoleScore` can redirect back to the same drill-down spot instead of resetting to
+ * round 1 after every save.
+ */
+function CorrectionRow({
+  row,
+  label,
+  roundId,
+  matchId,
+  hole,
+}: {
+  row: HoleScoreRow;
+  label: string;
+  roundId: string;
+  matchId?: string;
+  hole: number;
+}) {
+  return (
+    <form action={correctHoleScore} className={styles.row}>
+      <input type="hidden" name="id" value={row.id} />
+      <input type="hidden" name="roundId" value={roundId} />
+      {matchId && <input type="hidden" name="matchId" value={matchId} />}
+      <input type="hidden" name="hole" value={hole} />
+      <span>{label}</span>
+      <span className={styles.inlineForm}>
+        <input
+          className={styles.input}
+          type="number"
+          name="strokes"
+          defaultValue={row.strokes}
+          title="Real strokes"
+        />
+        <input
+          className={styles.input}
+          type="number"
+          name="matchStrokes"
+          defaultValue={row.match_strokes ?? ""}
+          placeholder="RM match #"
+          title="Match-only strokes (reverse mulligan)"
+        />
+        <label className={styles.checkboxLabel}>
+          <input type="checkbox" name="breakfastBall" defaultChecked={row.breakfast_ball} /> BB
+        </label>
+        <label className={styles.checkboxLabel}>
+          <input type="checkbox" name="mulligan" defaultChecked={row.mulligan} /> Mull
+        </label>
+        <button className={styles.btn} type="submit">
+          Save
+        </button>
+      </span>
+    </form>
+  );
 }
 
 function RoundPicker({
