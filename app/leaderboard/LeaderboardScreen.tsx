@@ -353,6 +353,12 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
               const netToPar = s.cumulativeNet - s.parPlayed;
               const grossToPar = s.cumulativeGross - s.parPlayed;
               const hasIndex = snapshot.players.find((p) => p.id === s.playerId)?.index !== null;
+              // Brief 21 Part B: the large badge follows the toggle — net mode shows net-to-par
+              // prominent with gross secondary, gross mode flips it. Sort order (above) is
+              // untouched by this; the ◆ daily-low badge stays net-based in both (Brief 19).
+              const primaryToPar = raceSort === "net" ? netToPar : grossToPar;
+              const secondaryLabel = raceSort === "net" ? "gross" : "net";
+              const secondaryToPar = raceSort === "net" ? grossToPar : netToPar;
               return (
                 <div className={styles.row} key={s.playerId}>
                   <div className={`${styles.tile} ${styles.pos}`}>{i + 1}</div>
@@ -360,11 +366,11 @@ export function LeaderboardScreen({ initialSnapshot }: { initialSnapshot: Snapsh
                     {playerName(snapshot.players, s.playerId)}
                     {isDailyLow && <span className={styles.lowBadge}>◆</span>}
                     <span className={styles.nameDetail}>
-                      thru {s.holesPlayed} · gross {toPar(grossToPar)}
+                      thru {s.holesPlayed} · {secondaryLabel} {toPar(secondaryToPar)}
                       {!hasIndex && " · no index"}
                     </span>
                   </div>
-                  <div className={`${styles.tile} ${styles.pts}`}>{toPar(netToPar)}</div>
+                  <div className={`${styles.tile} ${styles.pts}`}>{toPar(primaryToPar)}</div>
                 </div>
               );
             })}

@@ -42,7 +42,7 @@ describe("computeSkins", () => {
     expect(result.holes[1].status).toBe("carried");
     expect(result.holes[2]).toEqual({ hole: 3, status: "won", winner: "A" });
     expect(result.wins).toEqual([
-      { resolvingHole: 3, coveredHoles: [1, 2, 3], winner: "A" },
+      { resolvingHole: 3, coveredHoles: [1, 2, 3], carriedIn: 0, winner: "A" },
     ]);
     expect(result.skinsWonByPlayer).toEqual({ A: 3 });
   });
@@ -88,5 +88,68 @@ describe("computeSkins", () => {
     const result = computeSkins(scores, ["X", "Y"]);
 
     expect(result.holes[0]).toEqual({ hole: 1, status: "won", winner: "X" });
+  });
+});
+
+describe("computeSkins — cross-round carryIn (Addendum A §2, revised Jul 26 2026)", () => {
+  it("a Saturday tail that never resolved rides into Sunday and is claimed by Sunday's first winner", () => {
+    // Saturday: holes 17-18 tie all the way through, 2 unclaimed skins.
+    const saturdayScores: SkinsHoleScore[] = [
+      { playerId: "A", hole: 17, strokes: 4 },
+      { playerId: "B", hole: 17, strokes: 4 },
+      { playerId: "A", hole: 18, strokes: 4 },
+      { playerId: "B", hole: 18, strokes: 4 },
+    ];
+    const saturday = computeSkins(saturdayScores, ["A", "B"]);
+    expect(saturday.voidHoles).toEqual([17, 18]);
+
+    // Sunday: hole 1 resolves immediately with a unique low score.
+    const sundayScores: SkinsHoleScore[] = [
+      { playerId: "A", hole: 1, strokes: 3 },
+      { playerId: "B", hole: 1, strokes: 5 },
+    ];
+    const sunday = computeSkins(sundayScores, ["A", "B"], saturday.voidHoles.length);
+
+    expect(sunday.wins).toEqual([
+      { resolvingHole: 1, coveredHoles: [1], carriedIn: 2, winner: "A" },
+    ]);
+    // Hole 1's own value plus the 2 carried-in skins from Saturday, combined.
+    expect(sunday.skinsWonByPlayer).toEqual({ A: 3 });
+    expect(sunday.unresolvedCarryIn).toBe(0);
+  });
+
+  it("a Saturday round that resolves cleanly leaves Sunday unaffected, matching current behavior exactly", () => {
+    const saturdayScores: SkinsHoleScore[] = [
+      { playerId: "A", hole: 1, strokes: 3 },
+      { playerId: "B", hole: 1, strokes: 5 },
+    ];
+    const saturday = computeSkins(saturdayScores, ["A", "B"]);
+    expect(saturday.voidHoles).toEqual([]);
+
+    const sundayScores: SkinsHoleScore[] = [
+      { playerId: "A", hole: 1, strokes: 4 },
+      { playerId: "B", hole: 1, strokes: 3 },
+    ];
+    const sundayWithCarry = computeSkins(sundayScores, ["A", "B"], saturday.voidHoles.length);
+    const sundayNoCarry = computeSkins(sundayScores, ["A", "B"]);
+
+    expect(sundayWithCarry).toEqual(sundayNoCarry);
+    expect(sundayWithCarry.wins).toEqual([
+      { resolvingHole: 1, coveredHoles: [1], carriedIn: 0, winner: "B" },
+    ]);
+  });
+
+  it("carry-in that's still unclaimed when the round itself voids is surfaced, not silently dropped", () => {
+    const scores: SkinsHoleScore[] = [
+      { playerId: "A", hole: 18, strokes: 4 },
+      { playerId: "B", hole: 18, strokes: 4 },
+    ];
+    // Only hole 18 has scores — every earlier hole is "unplayed", not "carried", so the tie
+    // on 18 alone voids with nowhere to send the incoming carry either.
+    const result = computeSkins(scores, ["A", "B"], 3);
+
+    expect(result.wins).toEqual([]);
+    expect(result.voidHoles).toEqual([18]);
+    expect(result.unresolvedCarryIn).toBe(3);
   });
 });

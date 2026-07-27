@@ -5,8 +5,8 @@ import { runningLedger, skinsPayouts, type SettledBet } from "./moneyLedger";
 describe("skinsPayouts", () => {
   it("splits the pot evenly across 18 holes and pays covered holes at that rate", () => {
     const wins = [
-      { resolvingHole: 1, coveredHoles: [1], winner: "A" },
-      { resolvingHole: 7, coveredHoles: [4, 5, 6, 7], winner: "B" },
+      { resolvingHole: 1, coveredHoles: [1], carriedIn: 0, winner: "A" },
+      { resolvingHole: 7, coveredHoles: [4, 5, 6, 7], carriedIn: 0, winner: "B" },
     ];
     // 13 entrants x $20 = $260 pot / 18 = $14.444.../hole
     const payouts = skinsPayouts(wins, 13, 20);
@@ -16,7 +16,7 @@ describe("skinsPayouts", () => {
   });
 
   it("buyIn of 0 (not yet set by admin) yields all-zero payouts, not an error", () => {
-    const wins = [{ resolvingHole: 1, coveredHoles: [1], winner: "A" }];
+    const wins = [{ resolvingHole: 1, coveredHoles: [1], carriedIn: 0, winner: "A" }];
     expect(skinsPayouts(wins, 13, 0)).toEqual({ A: 0 });
   });
 

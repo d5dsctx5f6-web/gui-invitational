@@ -105,12 +105,20 @@ export function MoneyScreen({
   useRealtimeRefetch("challenge_bets", null, refetchBets);
 
   // Per-round skins result — every round gets computed (needed for the trip-wide ledger),
-  // but only the selected round's is shown in the Skins card.
+  // but only the selected round's is shown in the Skins card. `rounds` is already date-ordered
+  // (fetched with .order("date")), so a walk-forward carry is enough: each round's unresolved
+  // tail (voidHoles) rides into the next round's pool (Addendum A §2, revised Jul 26 2026).
   const skinsByRound = useMemo(() => {
     const map = new Map<
       string,
-      { entrantIds: string[]; result: ReturnType<typeof computeSkins>; payouts: Record<string, number> }
+      {
+        entrantIds: string[];
+        result: ReturnType<typeof computeSkins>;
+        payouts: Record<string, number>;
+        carryIn: number;
+      }
     >();
+    let carryIn = 0;
     for (const round of rounds) {
       const entrantIds = skinsEntries
         .filter((e) => e.round_id === round.id)
@@ -118,9 +126,10 @@ export function MoneyScreen({
       const scores: SkinsHoleScore[] = holeScores
         .filter((s) => s.round_id === round.id)
         .map((s) => ({ playerId: s.player_id, hole: s.hole, strokes: s.strokes }));
-      const result = computeSkins(scores, entrantIds);
+      const result = computeSkins(scores, entrantIds, carryIn);
       const payouts = skinsPayouts(result.wins, entrantIds.length, round.skins_buy_in ?? 0);
-      map.set(round.id, { entrantIds, result, payouts });
+      map.set(round.id, { entrantIds, result, payouts, carryIn });
+      carryIn = result.voidHoles.length;
     }
     return map;
   }, [rounds, skinsEntries, holeScores]);
@@ -158,6 +167,9 @@ export function MoneyScreen({
   const iAmIn = selected.entrantIds.includes(currentPlayerId);
   const hasBuyIn = selectedRound.skins_buy_in !== null && selectedRound.skins_buy_in > 0;
   const selectedRoundLabel = `${courses.find((c) => c.id === selectedRound.course_id)?.name ?? "Unknown course"} — ${formatName(selectedRound.format)}`;
+  // Last round in the trip has nowhere left to carry an unresolved tail into (Addendum A §2) —
+  // everywhere else, an unresolved tail is en route to the next round's pool, not genuinely void.
+  const isLastRound = rounds.indexOf(selectedRound) === rounds.length - 1;
 
   // Brief 9 Part G: opting in is a deliberate, one-way act — a confirm step gates the write,
   // and once in there's no player-facing opt-out for this round at all (the toggle from
@@ -220,6 +232,13 @@ export function MoneyScreen({
           Entrants: {selected.entrantIds.map((id) => playerName(players, id)).join(", ") || "none yet"}
         </div>
 
+        {selected.carryIn > 0 && (
+          <div className={styles.hint}>
+            Includes {selected.carryIn} unresolved skin{selected.carryIn === 1 ? "" : "s"} carried
+            in from the prior round&apos;s pool
+          </div>
+        )}
+
         {skinsWinners.length > 0 && (
           <div style={{ marginTop: 8 }}>
             {skinsWinners.map(([playerId, holesWon]) => (
@@ -236,7 +255,16 @@ export function MoneyScreen({
         )}
         {selected.result.voidHoles.length > 0 && (
           <div className={styles.hint}>
-            Void (tied through 18): holes {selected.result.voidHoles.join(", ")}
+            {isLastRound
+              ? `Void (tied through 18): holes ${selected.result.voidHoles.join(", ")} — genuinely unresolved, settle manually`
+              : `Tied through 18: holes ${selected.result.voidHoles.join(", ")} — carrying into next round's pool`}
+          </div>
+        )}
+        {selected.result.unresolvedCarryIn > 0 && (
+          <div className={styles.hint}>
+            Plus {selected.result.unresolvedCarryIn} carried-in skin
+            {selected.result.unresolvedCarryIn === 1 ? "" : "s"} from before, still unclaimed —
+            settle manually
           </div>
         )}
       </div>

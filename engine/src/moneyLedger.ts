@@ -1,8 +1,9 @@
 // Money — skins payouts in dollars, and the per-player running ledger. PRODUCT_SPEC §2 "Money".
 // Pot splits evenly across all 18 holes regardless of how many skins carried into any one win —
-// a win covering N carried-in holes pays N × (pot / 18). Buy-in is a per-round admin input
-// (rounds.skins_buy_in) that may not be set yet; callers pass 0 when it's null, which correctly
-// yields all-zero payouts rather than a hard block.
+// a win covering N holes (within-round carries plus any cross-round carryIn, Addendum A §2) pays
+// N × (pot / 18), valued at *this* round's own entrant pool/buy-in. Buy-in is a per-round admin
+// input (rounds.skins_buy_in) that may not be set yet; callers pass 0 when it's null, which
+// correctly yields all-zero payouts rather than a hard block.
 
 import type { SkinsWin } from "./skins";
 
@@ -20,7 +21,7 @@ export function skinsPayouts(
 
   for (const win of wins) {
     payouts[win.winner] =
-      (payouts[win.winner] ?? 0) + win.coveredHoles.length * dollarPerHole;
+      (payouts[win.winner] ?? 0) + (win.coveredHoles.length + win.carriedIn) * dollarPerHole;
   }
 
   return payouts;

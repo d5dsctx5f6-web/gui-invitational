@@ -153,7 +153,12 @@ describe("individual net race", () => {
 describe("skins — gross, opt-in, paid nightly", () => {
   it("Saturday: carries a chain and resolves it (holes 1-4, Will Petersen)", () => {
     const win = SATURDAY_SKINS.wins.find((w) => w.resolvingHole === 4)!;
-    expect(win).toEqual({ resolvingHole: 4, coveredHoles: [1, 2, 3, 4], winner: "Will Petersen" });
+    expect(win).toEqual({
+      resolvingHole: 4,
+      coveredHoles: [1, 2, 3, 4],
+      carriedIn: 0,
+      winner: "Will Petersen",
+    });
   });
 
   it("Saturday: a reverse-mulliganed player still wins the skin on his real (not match) score", () => {
@@ -161,6 +166,7 @@ describe("skins — gross, opt-in, paid nightly", () => {
     expect(win).toEqual({
       resolvingHole: 10,
       coveredHoles: [5, 6, 7, 8, 9, 10],
+      carriedIn: 0,
       winner: "Chris Deliso",
     });
   });
