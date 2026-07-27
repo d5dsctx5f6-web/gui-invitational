@@ -56,6 +56,15 @@ function playerName(players: Player[], id: string | null): string {
   return players.find((p) => p.id === id)?.name ?? "?";
 }
 
+/** Brief 22: same formatting convention as Scorecard.tsx's own formatTeeTime. */
+function formatTeeTime(teeTime: string | null): string | null {
+  if (!teeTime) return null;
+  return new Date(teeTime).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function MoneyScreen({
   rounds,
   selectedRoundId,
@@ -65,6 +74,7 @@ export function MoneyScreen({
   initialBets,
   currentPlayerId,
   courses,
+  mySkinsCutoffTeeTime,
 }: {
   rounds: Round[];
   selectedRoundId: string;
@@ -74,6 +84,7 @@ export function MoneyScreen({
   initialBets: BetRow[];
   currentPlayerId: string;
   courses: Course[];
+  mySkinsCutoffTeeTime: string | null;
 }) {
   const [skinsEntries, setSkinsEntries] = useState(initialSkinsEntries);
   const [holeScores, setHoleScores] = useState(initialHoleScores);
@@ -225,7 +236,9 @@ export function MoneyScreen({
           </button>
         )}
         <div className={styles.hint}>
-          Opt in before this round&apos;s first tee — not hard-blocked after
+          {formatTeeTime(mySkinsCutoffTeeTime)
+            ? `Opt in before your tee time (${formatTeeTime(mySkinsCutoffTeeTime)}) — not hard-blocked after`
+            : "Opt in before your tee time — not hard-blocked after"}
         </div>
 
         <div className={styles.hint}>
