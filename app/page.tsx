@@ -40,6 +40,9 @@ export default async function Home() {
         <Link href="/champions" className={styles.navLink}>
           Champions wall
         </Link>
+        <Link href="/rulebook" className={styles.navLink}>
+          Rulebook
+        </Link>
       </div>
 
       <IdentityPicker players={players ?? []} currentPlayer={currentPlayer} />
