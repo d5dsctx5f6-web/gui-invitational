@@ -2,7 +2,7 @@
 
 **Companion to:** GUI Invitational Product Spec v1.1 (the spec governs the app build; this governs the trip)
 **Event:** Year 1 · March 26–28, 2027
-**Version:** 1.6
+**Version:** 1.7
 
 ---
 
@@ -61,7 +61,7 @@ After the room clears, Chris enters the four teams, captains, and Saturday's mat
 
 ## 6. Money (fixed in Charter v1.1 — summary)
 
-- **Gross skins**, optional entry each competitive round — every player opts in or out in the app before the round's first tee (buy-in TBD). Lowest raw score **among entrants** outright wins the hole, carryovers on ties. Non-entrants are invisible to skins: their scores neither win nor block. Zero math, maximum reward.
+- **Gross skins**, optional entry each competitive round — every player opts in or out in the app before that round's own tee time (buy-in TBD). Lowest raw score **among entrants** outright wins the hole; ties carry to the next hole. Non-entrants are invisible to skins: their scores neither win nor block. **If a round ends with skins still unclaimed, that pot doesn't void — it rolls forward into the next round's pool** (revised Jul 26, 2026; see Product Spec Addendum A §2). Zero math, maximum reward.
 - **The Challenge Ledger** — any player can log a bet against any other, any time; the other taps accept to make it official; winner marked, amount hits the ledger. Absorbs every side game invented on the trip.
 - Nothing else. No cup pot — the cup is played for the trophy and the champions wall.
 - One settle-up number per man at trip's end.
@@ -71,6 +71,7 @@ After the room clears, Chris enters the four teams, captains, and Saturday's mat
 ## 7. Contingencies
 
 - **Shortened event:** if Sunday cannot be completed (departures, weather), the cup and individual title go to the standings after the last fully completed round. Pre-decided — no bar-side rulings.
+- **No ties, ever — a chip-off is the universal final resolver.** But the automatic criteria leading up to it differ by what's being decided: the **Cup** and **Sunday's pairings** use points → head-to-head → total holes won; the **individual title** uses a different ladder — cumulative net → Sunday's net → Sunday's back-9 net. Both bottom out in a chip-off if still tied. (Full detail: Product Spec Addendum A §3.)
 - **Commissioner authority:** Chris resolves anything not covered here — score corrections, handicap adjustments, Challenge Ledger disputes, rule gaps. Rulings are final and entered through admin.
 - Fine-grained edges (tiebreaker ladder, handicap allowances per format, skins edge rules, Challenge Ledger void rules, reverse mulligan edge rules) are resolved by Chris with the architect and encoded before M2 (Spec §5).
 
