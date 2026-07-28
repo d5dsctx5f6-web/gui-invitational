@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { checkPasscode, clearAdminSession, requireAdmin, setAdminSession } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { arizonaLocalToUtcIso } from "@/lib/timezone";
 
 function flash(message: string): never {
   redirect(`/admin?msg=${encodeURIComponent(message)}`);
@@ -166,7 +167,11 @@ export async function upsertMatch(formData: FormData) {
     team_a_id: teamAId,
     team_b_id: teamBId,
     slot,
-    tee_time: teeTimeRaw === "" ? null : new Date(teeTimeRaw).toISOString(),
+    // Brief 26: the datetime-local input is a naive "wall clock" string with no timezone of its
+    // own — Chris always means Arizona time when he sets a tee time, regardless of where he
+    // happens to be sitting when he enters it, so this must not use new Date(raw).toISOString()
+    // (which would silently apply whatever timezone this server process happens to be in).
+    tee_time: teeTimeRaw === "" ? null : arizonaLocalToUtcIso(teeTimeRaw),
   };
   const { error } = matchId
     ? await supabase.from("matches").update(row).eq("id", matchId)
@@ -613,7 +618,9 @@ export async function createScheduleItem(formData: FormData) {
   const { error } = await supabase.from("schedule_items").insert({
     season_id: seasonId,
     title,
-    starts_at: startsAtRaw === "" ? null : new Date(startsAtRaw).toISOString(),
+    // Brief 26: same Arizona-anchoring as tee_time — every schedule item happens on the trip,
+    // in Phoenix, regardless of where Chris is entering it from.
+    starts_at: startsAtRaw === "" ? null : arizonaLocalToUtcIso(startsAtRaw),
     notes: notesRaw === "" ? null : notesRaw,
   });
   if (error) flashError(error.message);
@@ -636,7 +643,9 @@ export async function updateScheduleItem(formData: FormData) {
     .from("schedule_items")
     .update({
       title,
-      starts_at: startsAtRaw === "" ? null : new Date(startsAtRaw).toISOString(),
+      // Brief 26: same Arizona-anchoring as tee_time — every schedule item happens on the trip,
+    // in Phoenix, regardless of where Chris is entering it from.
+    starts_at: startsAtRaw === "" ? null : arizonaLocalToUtcIso(startsAtRaw),
       notes: notesRaw === "" ? null : notesRaw,
     })
     .eq("id", id);

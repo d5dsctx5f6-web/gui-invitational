@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { formatArizonaDate, formatArizonaTime } from "@/lib/timezone";
 import pageStyles from "../page.module.css";
 import styles from "./schedule.module.css";
 
@@ -37,19 +38,14 @@ function formatName(format: string): string {
   return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
 }
 
+// Brief 26: both always Arizona time, regardless of the viewing device's own timezone — every
+// event on this page happens on the trip, in Phoenix.
 function dayLabel(startsAt: string): string {
-  return new Date(startsAt).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
+  return formatArizonaDate(startsAt);
 }
 
 function timeLabel(startsAt: string): string {
-  return new Date(startsAt).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatArizonaTime(startsAt);
 }
 
 export default async function SchedulePage() {

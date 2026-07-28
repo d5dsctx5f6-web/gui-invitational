@@ -36,6 +36,7 @@ import styles from "./admin.module.css";
 import pageStyles from "../page.module.css";
 import { isAdminAuthed } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
+import { utcIsoToArizonaDatetimeLocal } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -401,11 +402,11 @@ export default async function AdminPage({
   const courseNameForRound = (round: Round) => courseName(courses, round.course_id);
   const roundLabel = (round: Round) => `${courseNameForRound(round)} — ${formatName(round.format)}`;
 
+  // Brief 26: this re-opens the edit form showing the Arizona time Chris originally set, not a
+  // value shifted by whatever timezone this server process happens to be running in.
   function toDatetimeLocal(value: string | null): string {
     if (!value) return "";
-    const d = new Date(value);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return utcIsoToArizonaDatetimeLocal(value);
   }
 
   function courseDeleteWarning(courseId: string, name: string): string {

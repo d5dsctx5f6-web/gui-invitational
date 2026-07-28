@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
+import { formatArizonaTime } from "@/lib/timezone";
 import { SignInGate } from "../SignInGate";
 import pageStyles from "../page.module.css";
 import { DuosScreen } from "./DuosScreen";
@@ -97,10 +98,11 @@ export default async function DuosPage({
     .filter((t): t is string => t !== null)
     .sort();
   const earliestTeeTime = teeTimes[0] ?? null;
+  // Brief 26: Arizona time explicitly, regardless of the viewing device's own timezone.
   const deadlineText = earliestTeeTime
     ? (() => {
         const deadline = new Date(new Date(earliestTeeTime).getTime() - 30 * 60 * 1000);
-        const time = deadline.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        const time = formatArizonaTime(deadline.toISOString());
         return `Deadline: ${time} — 30 minutes before the round's first tee — not hard-blocked after, but get it in`;
       })()
     : `Deadline: 30 minutes before ${round.date}'s first tee — not hard-blocked after, but get it in`;

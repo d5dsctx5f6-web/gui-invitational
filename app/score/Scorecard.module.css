@@ -201,9 +201,11 @@
   color: var(--white);
 }
 
+/* Brief 26 Part C: was 11px — the other example Chris named directly (par/yardage/stroke
+   index). */
 .holemeta {
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--tile2);
   line-height: 1.8;
@@ -224,8 +226,8 @@
   background: var(--board2);
   color: var(--gold);
   font-family: inherit;
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  font-size: 12px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 10px;
   border-radius: 4px;
@@ -298,13 +300,16 @@
   flex-wrap: wrap;
 }
 
+/* Brief 26 Part C: was 8px — Chris's direct complaint (do-over availability chips read as
+   illegible in sunlight). Bumped to a comfortably-readable size; tighter tracking so the
+   uppercase label doesn't run wide at the larger size. */
 .chip {
-  font-size: 8px;
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   border: 1px solid var(--seam);
   color: var(--tile2);
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: 2px;
   background: none;
   font-family: inherit;
@@ -393,12 +398,12 @@
 }
 
 .editingBadge {
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--spruce);
   background: var(--gold);
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 2px;
   font-weight: 600;
 }
@@ -438,8 +443,8 @@
 }
 
 .hint {
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tile2);
   text-align: center;
@@ -457,8 +462,8 @@
 }
 
 .rmtxt {
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  letter-spacing: 0.03em;
   color: var(--tile2);
 }
 
@@ -467,15 +472,15 @@
 }
 
 .rmNote {
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  letter-spacing: 0.03em;
   color: var(--gold);
   margin-top: 3px;
 }
 
 .noIndexNote {
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  letter-spacing: 0.03em;
   color: var(--tile2);
   margin-top: 3px;
 }

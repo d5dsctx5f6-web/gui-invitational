@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { computeSkins, runningLedger, skinsPayouts, type SettledBet, type SkinsHoleScore } from "@/engine/src";
 import { createClient } from "@/lib/supabase/client";
+import { formatArizonaTime } from "@/lib/timezone";
 import { useRealtimeRefetch } from "@/lib/supabase/useRealtimeRefetch";
 import styles from "./money.module.css";
 
@@ -56,13 +57,11 @@ function playerName(players: Player[], id: string | null): string {
   return players.find((p) => p.id === id)?.name ?? "?";
 }
 
-/** Brief 22: same formatting convention as Scorecard.tsx's own formatTeeTime. */
+/** Brief 22: same formatting convention as Scorecard.tsx's own formatTeeTime.
+ *  Brief 26: always Arizona time, regardless of the viewing device's own timezone. */
 function formatTeeTime(teeTime: string | null): string | null {
   if (!teeTime) return null;
-  return new Date(teeTime).toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatArizonaTime(teeTime);
 }
 
 export function MoneyScreen({

@@ -16,6 +16,7 @@ import {
   type SegmentState,
 } from "@/engine/src";
 import { createClient } from "@/lib/supabase/client";
+import { formatArizonaTime } from "@/lib/timezone";
 import { useRealtimeRefetch } from "@/lib/supabase/useRealtimeRefetch";
 import styles from "./Scorecard.module.css";
 import type {
@@ -91,13 +92,12 @@ function formatName(format: string): string {
   return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
 }
 
-/** Brief 17: this matchup's own tee time, formatted for the header — null if not yet assigned. */
+/** Brief 17: this matchup's own tee time, formatted for the header — null if not yet assigned.
+ *  Brief 26: always Arizona time, regardless of the viewing device's own timezone — the trip
+ *  only ever happens in Phoenix. */
 function formatTeeTime(teeTime: string | null): string | null {
   if (!teeTime) return null;
-  return new Date(teeTime).toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatArizonaTime(teeTime);
 }
 
 type Accent = "good" | "bad" | "even";
