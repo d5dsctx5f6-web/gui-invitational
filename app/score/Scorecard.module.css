@@ -13,7 +13,7 @@
   align-items: center;
   min-height: 44px;
   box-sizing: border-box;
-  font-size: 13px;
+  font-size: var(--fs-body);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--gold);
@@ -28,8 +28,9 @@
   padding: 4px 0;
 }
 
+/* Brief 27: a metadata label like every other screen's — migrated onto the shared scale. */
 .eyebrow {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -45,6 +46,11 @@
   gap: 6px;
 }
 
+/* Brief 23/27: the F9/B9/18 compact indicator and the hole-by-hole strip below (.hole, .hole b,
+   .segBadge, .segSub, .stripkey) are a deliberate exception to the shared scale — Brief 23 Part C
+   built these specifically to be terse, glance-once broadcast-style badges (an arrow, a number, a
+   letter), not continuously-read text. Enlarging them onto the body scale would work against the
+   compact design they were built for, not serve PRODUCT_SPEC §4's readability goal. */
 .seg {
   flex: 1;
   text-align: center;
@@ -58,9 +64,6 @@
   color: var(--tile2);
 }
 
-/* Brief 23 Part C: a Ryder-Cup-broadcast-style badge — arrow + margin, one glance, no reading a
-   sentence. Color is the signed-in player's own duo's fortune (segAccent in Scorecard.tsx), not
-   duo A/B literally. */
 .segBadge {
   font-size: 15px;
   font-weight: 700;
@@ -99,7 +102,7 @@
   background: var(--board2);
   color: var(--gold);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -160,7 +163,7 @@
 /* Brief 23 Part D: the headline info on an already-posted hole — bigger and louder than
    .editingBadge, per Chris's explicit ask that this not be a footnote. */
 .winnerBanner {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-align: center;
@@ -194,6 +197,8 @@
   padding: 12px;
 }
 
+/* Bespoke hero display — the single biggest, most important number on the screen. Already well
+   above any shared tier; not what the scale exists to standardize. */
 .bignum {
   font-size: 44px;
   font-weight: 600;
@@ -201,10 +206,11 @@
   color: var(--white);
 }
 
-/* Brief 26 Part C: was 11px — the other example Chris named directly (par/yardage/stroke
-   index). */
+/* Brief 26 bumped this from 11px to 13px (Chris's other named example, par/yardage/stroke
+   index); Brief 27 migrates it onto the shared body tier — real content a player reads on every
+   single hole, not a secondary label. */
 .holemeta {
-  font-size: 13px;
+  font-size: var(--fs-body);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -226,7 +232,7 @@
   background: var(--board2);
   color: var(--gold);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 10px;
@@ -252,7 +258,7 @@
 }
 
 .cardhead h2 {
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold);
@@ -260,7 +266,7 @@
 }
 
 .cardhead .meta {
-  font-size: 10px;
+  font-size: var(--fs-label);
   color: var(--tile2);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -280,7 +286,7 @@
 }
 
 .pname {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -290,7 +296,7 @@
   color: var(--gold);
   letter-spacing: 0.1em;
   margin-left: 6px;
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 
 .ptags {
@@ -300,11 +306,10 @@
   flex-wrap: wrap;
 }
 
-/* Brief 26 Part C: was 8px — Chris's direct complaint (do-over availability chips read as
-   illegible in sunlight). Bumped to a comfortably-readable size; tighter tracking so the
-   uppercase label doesn't run wide at the larger size. */
+/* Brief 26 bumped this from 8px to 11px — Chris's direct complaint (do-over availability chips
+   read as illegible in sunlight). Brief 27 migrates onto the shared label tier. */
 .chip {
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   border: 1px solid var(--seam);
@@ -337,6 +342,7 @@
   gap: 8px;
 }
 
+/* Bespoke big tap targets — already generously sized, not on the shared scale. */
 .stepbtn {
   width: 42px;
   height: 42px;
@@ -367,7 +373,7 @@
   width: 100%;
   background: var(--red);
   color: var(--white);
-  font-size: 14px;
+  font-size: var(--fs-body);
   padding: 16px;
 }
 
@@ -376,7 +382,7 @@
 }
 
 .error {
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--white);
@@ -387,7 +393,7 @@
 }
 
 .success {
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--spruce);
@@ -398,7 +404,7 @@
 }
 
 .editingBadge {
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--spruce);
@@ -415,7 +421,7 @@
   align-items: center;
   padding: 9px 2px;
   border-bottom: 1px solid var(--seam2);
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 
 .totalsRow:last-child {
@@ -429,7 +435,7 @@
 }
 
 .totalsThru {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -443,7 +449,7 @@
 }
 
 .hint {
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -462,7 +468,7 @@
 }
 
 .rmtxt {
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.03em;
   color: var(--tile2);
 }
@@ -472,14 +478,14 @@
 }
 
 .rmNote {
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.03em;
   color: var(--gold);
   margin-top: 3px;
 }
 
 .noIndexNote {
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.03em;
   color: var(--tile2);
   margin-top: 3px;

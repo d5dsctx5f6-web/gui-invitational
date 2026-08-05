@@ -9,8 +9,9 @@
   gap: 12px;
 }
 
+/* Brief 27: migrated onto the shared type scale (app/globals.css) throughout this file. */
 .eyebrow {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -32,7 +33,7 @@
 }
 
 .hint {
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--tile2);
 }
 
@@ -55,21 +56,22 @@
   border-bottom: none;
 }
 
+/* The actual time a player needs to be somewhere — real content, not a secondary label. */
 .eventTime {
-  font-size: 11px;
+  font-size: var(--fs-body);
   letter-spacing: 0.06em;
   color: var(--tile2);
   padding-top: 1px;
 }
 
 .eventTitle {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--cream);
 }
 
 .eventNotes {
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--tile2);
   margin-top: 2px;
 }

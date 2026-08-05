@@ -9,8 +9,9 @@
   gap: 12px;
 }
 
+/* Brief 27: migrated onto the shared type scale (app/globals.css) throughout this file. */
 .eyebrow {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -22,7 +23,7 @@
 }
 
 .deadline {
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--tile2);
   text-align: center;
 }
@@ -38,7 +39,7 @@
   border: 1px solid var(--seam);
   border-radius: 4px;
   padding: 8px;
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   color: var(--tile2);
 }
@@ -60,7 +61,7 @@
 }
 
 .cardhead h2 {
-  font-size: 13px;
+  font-size: var(--fs-body);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--gold);
@@ -68,13 +69,13 @@
 }
 
 .hint {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.04em;
   color: var(--tile2);
 }
 
 .statusRow {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--cream);
   padding: 6px 0;
   border-bottom: 1px solid var(--seam2);
@@ -90,7 +91,7 @@
   gap: 10px;
   padding: 6px 0;
   border-bottom: 1px solid var(--seam2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .duoRow:last-child {
@@ -99,7 +100,7 @@
 
 .duoLabel {
   color: var(--tile2);
-  font-size: 11px;
+  font-size: var(--fs-label);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -125,7 +126,7 @@
 
 .rosterChip {
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-label);
   border: 1px solid var(--seam);
   color: var(--cream);
   background: none;
@@ -162,7 +163,7 @@
 }
 
 .duoZoneLabel {
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--gold);
@@ -183,7 +184,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: var(--fs-body);
   padding: 10px;
 }
 
@@ -198,7 +199,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--tile2);
   text-align: center;
   padding: 10px;
@@ -238,7 +239,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--gold);
@@ -253,7 +254,7 @@
 }
 
 .error {
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 600;
   color: var(--white);
   background: var(--red);
@@ -263,7 +264,7 @@
 }
 
 .success {
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--spruce);
@@ -282,7 +283,7 @@
   letter-spacing: 0.1em;
   background: var(--red);
   color: var(--white);
-  font-size: 12px;
+  font-size: var(--fs-label);
   padding: 12px;
 }
 

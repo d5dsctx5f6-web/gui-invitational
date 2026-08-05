@@ -9,8 +9,9 @@
   gap: 12px;
 }
 
+/* Brief 27: migrated onto the shared type scale (app/globals.css) throughout this file. */
 .eyebrow {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -36,7 +37,7 @@
   border: 2px solid var(--gold);
   border-radius: 4px;
   padding: 14px 8px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -67,7 +68,7 @@
 }
 
 .cardhead h2 {
-  font-size: 13px;
+  font-size: var(--fs-body);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--gold);
@@ -75,14 +76,14 @@
 }
 
 .meta {
-  font-size: 10px;
+  font-size: var(--fs-label);
   color: var(--tile2);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .hint {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.04em;
   color: var(--tile2);
 }
@@ -93,7 +94,7 @@
   color: var(--gold);
   font-family: inherit;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 10px;
@@ -108,7 +109,7 @@
   border: 2px solid var(--seam);
   color: var(--gold);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 10px;
@@ -136,7 +137,7 @@
   justify-content: space-between;
   padding: 6px 0;
   border-bottom: 1px solid var(--seam2);
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--cream);
 }
 
@@ -160,7 +161,7 @@
 .ledgerRow {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--cream);
 }
 
@@ -168,7 +169,7 @@
   display: flex;
   gap: 10px;
   margin-top: 3px;
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -205,7 +206,7 @@
   gap: 8px;
   padding: 8px 0;
   border-bottom: 1px solid var(--seam2);
-  font-size: 12px;
+  font-size: var(--fs-body);
   color: var(--cream);
 }
 
@@ -222,7 +223,7 @@
 
 .smallBtn {
   font-family: inherit;
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 600;
@@ -236,7 +237,7 @@
 }
 
 .badge {
-  font-size: 9px;
+  font-size: var(--fs-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -254,7 +255,7 @@
 .select,
 .input {
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-body);
   background: var(--spruce);
   color: var(--cream);
   border: 1px solid var(--seam);
@@ -265,7 +266,7 @@
 }
 
 .errorText {
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--red);
 }
 
@@ -285,6 +286,6 @@
   letter-spacing: 0.1em;
   background: var(--gold);
   color: var(--spruce);
-  font-size: 12px;
+  font-size: var(--fs-label);
   padding: 12px;
 }

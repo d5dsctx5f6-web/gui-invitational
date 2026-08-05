@@ -9,8 +9,9 @@
   gap: 12px;
 }
 
+/* Brief 27: migrated onto the shared type scale (app/globals.css) throughout this file. */
 .eyebrow {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -35,7 +36,7 @@
   border: 1px solid var(--seam);
   border-radius: 4px;
   padding: 10px;
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -76,11 +77,11 @@
 .pos {
   justify-content: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--fs-body);
 }
 
 .name {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
   flex-direction: column;
   align-items: flex-start;
@@ -88,19 +89,20 @@
 }
 
 .nameDetail {
-  font-size: 9px;
+  font-size: var(--fs-label);
   font-weight: 400;
   color: var(--seam);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
+/* The featured points figure — a step up to the emphasis tier, not just body text. */
 .pts {
   justify-content: center;
   background: var(--red);
   color: var(--white);
   font-weight: 700;
-  font-size: 16px;
+  font-size: var(--fs-emphasis);
 }
 
 .chipRow {
@@ -111,7 +113,7 @@
 }
 
 .chipNote {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   color: var(--gold);
   font-weight: 600;
@@ -126,7 +128,7 @@
 }
 
 .boardfoot {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -135,7 +137,7 @@
 }
 
 .hint {
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--tile2);
   text-align: center;
 }
@@ -160,7 +162,7 @@
 }
 
 .cardhead h2 {
-  font-size: 13px;
+  font-size: var(--fs-body);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--gold);
@@ -168,14 +170,14 @@
 }
 
 .meta {
-  font-size: 10px;
+  font-size: var(--fs-label);
   color: var(--tile2);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .betterms {
-  font-size: 13px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   letter-spacing: 0.02em;
   color: var(--cream);
@@ -186,7 +188,7 @@
 }
 
 .stripkey {
-  font-size: 9px;
+  font-size: var(--fs-label);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--tile2);

@@ -21,8 +21,13 @@
   color: var(--gold);
 }
 
+/* Brief 27 Part C: applied where admin's denser packed-inline-form layouts (Rounds & Matchups,
+   Corrections) can safely absorb it — standalone elements bumped freely; form controls migrated
+   onto the shared tokens where the token value equals what was already there (a safe, zero-risk
+   token-ify) or a minimal 1px increase. Genuinely dense multi-field rows kept smaller values
+   where a bigger bump risked wrapping — noted inline below. */
 .logout {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--tile2);
@@ -35,7 +40,7 @@
 }
 
 .flash {
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 600;
   padding: 10px 12px;
   border-radius: 4px;
@@ -85,7 +90,7 @@
   color: var(--white);
   font-family: inherit;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-body);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 14px;
@@ -104,7 +109,7 @@
 }
 
 .sectionTitle {
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold);
@@ -118,7 +123,7 @@
   gap: 8px;
   padding: 8px 0;
   border-bottom: 1px solid var(--seam2);
-  font-size: 13px;
+  font-size: var(--fs-body);
   flex-wrap: wrap;
 }
 
@@ -136,7 +141,7 @@
 .input,
 .select {
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-label);
   background: var(--spruce);
   color: var(--cream);
   border: 1px solid var(--seam);
@@ -164,8 +169,8 @@
 
 .btn {
   font-family: inherit;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-label);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 600;
   border: none;
@@ -190,7 +195,7 @@
 }
 
 .hint {
-  font-size: 10px;
+  font-size: var(--fs-label);
   letter-spacing: 0.04em;
   color: var(--tile2);
 }
@@ -214,7 +219,7 @@
 }
 
 .matchupsLabel {
-  font-size: 9px;
+  font-size: var(--fs-label);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--gold);
@@ -222,7 +227,7 @@
 }
 
 .countNote {
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--gold);
@@ -233,7 +238,7 @@
 }
 
 .checkboxLabel {
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--tile2);
   display: flex;
   align-items: center;

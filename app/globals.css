@@ -8,6 +8,23 @@
   --seam2: #16473a;
   --tile2: #e9dec2;
   --white: #f7f3e8;
+
+  /* Brief 27 — the app's one shared text-size scale. PRODUCT_SPEC §4 commits every
+     player-facing screen to "a phone in sunlight, one-handed" — reach for these three tiers
+     instead of a new one-off px value so that standard travels automatically to whatever screen
+     gets built next, rather than needing its own sizing-pass brief the way the scorecard did
+     (Brief 26) before this scale existed.
+       --fs-label:    secondary/meta text — hints, badges, captions, table sub-labels, buttons.
+       --fs-body:     primary readable content — names, list items, paragraph copy, form inputs.
+       --fs-emphasis: prominent short numbers/headlines — a step up from body, short of the
+                      genuinely bespoke hero-sized displays (a 44px hole number, a $ figure) that
+                      don't belong on a shared scale at all and should stay their own value.
+     A few intentionally tiny, tightly-grid-constrained glance-once badges (the scorecard's
+     hole-by-hole W/L/H strip, its compact up/down segment badges) are a documented exception,
+     not a gap — see Scorecard.module.css. Everything else should be one of these three. */
+  --fs-label: 12px;
+  --fs-body: 14px;
+  --fs-emphasis: 18px;
 }
 
 * {
