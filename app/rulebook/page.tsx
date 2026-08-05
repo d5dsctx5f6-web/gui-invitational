@@ -10,13 +10,12 @@ import styles from "./rulebook.module.css";
 // than a server component with a fetch. Distinct from the internal docs/GUI_INVITATIONAL_RULEBOOK.md
 // (that's Chris's own architect-facing reference) — this is the copy for the other 15 guys.
 //
-// Copy is Brief 25 Part B, used verbatim except one accuracy fix: the tiebreakers section
-// originally read "the automatic tiebreakers (points, head-to-head, holes won)" as if that one
-// ladder covered the Cup, the individual title, and Sunday's pairings alike. It doesn't — per
-// PRODUCT_SPEC_ADDENDUM_A.md §3, the individual title uses a different ladder entirely
-// (cumulative net → better Sunday net → better Sunday back-9 net → chip-off), nothing to do with
-// points/head-to-head/holes won. Dropped the inaccurate parenthetical rather than state something
-// false; flagged in this session's addendum for Chris to see.
+// Brief 28 replaced Brief 25's original concise copy with a more descriptive, example-driven
+// version — same nine section headers, same collapsible structure, just more explanation per
+// section. Both tiebreaker ladders (Cup/pairings vs. individual title) are now spelled out in
+// full for the first time, cross-checked against PRODUCT_SPEC_ADDENDUM_A.md §3 — Brief 25's
+// original copy had wrongly implied one ladder covered all three cases and had to be stripped
+// down rather than shipped wrong; this version states both correctly instead.
 
 interface Section {
   key: string;
@@ -31,14 +30,17 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>
-          16 guys, 4 teams of 4, drafted by captains on trip night. Two rounds count: Saturday is
-          a shamble, Sunday is four-ball. (There&apos;s also a Friday fun round — that one&apos;s
-          just for fun, nothing on this app tracks it.)
+          16 guys, 4 teams of 4, drafted by captains on trip night before anyone hits a shot. Two
+          rounds actually count for the Cup: Saturday is a shamble, Sunday is four-ball.
+          (There&apos;s also a Friday fun round — that one&apos;s just for fun, nothing on this
+          app tracks it, so play whatever you want.)
         </p>
         <p>
-          Each round, your team splits into two duos. Your duo plays another team&apos;s duo,
-          head-to-head, match play. Four duo matches happening at once — that&apos;s four
-          foursomes out on the course.
+          Each round, your team splits into two duos — you and one teammate, playing as a pair.
+          Your duo goes head-to-head against one duo from another team, straight match play:
+          lowest score on the hole wins it, ties halve it. Four duo matches happen at once each
+          round — that&apos;s four foursomes out on the course simultaneously, one from each
+          teammate pairing.
         </p>
       </>
     ),
@@ -49,17 +51,26 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>
-          Every duo match is worth 3 points: 1 for the front nine, 1 for the back nine, 1 for the
-          full 18. Win a segment, get the point. Halve it, split the point.
+          Every duo match is worth 3 points total, split into three separate mini-contests: the
+          front nine (holes 1–9), the back nine (holes 10–18), and the full 18 (the whole match
+          start to finish). You&apos;re not just racing to see who wins the round overall —
+          you&apos;re fighting for each segment separately.
+        </p>
+        <p>Win a segment outright, you get that point. Get through it dead even, you split it — half a point each.</p>
+        <p>
+          For example: say your duo is 2-up after the front nine — that&apos;s your point, full
+          stop, even if you come back to lose the back nine. Then if the back nine ends up split
+          even, that&apos;s a half-point each. And however the full-18 tally lands, that&apos;s
+          the third point. A single match can hand out points to both sides.
         </p>
         <p>
-          12 points up for grabs each day, 24 for the whole weekend. Most points after Sunday wins
-          the Cup.
+          12 points up for grabs each day (4 matches × 3 points), 24 for the whole weekend. Most
+          points after Sunday wins the Cup — outright, every point matters.
         </p>
         <p>
           Sunday&apos;s matchups aren&apos;t random — they&apos;re earned. Whoever&apos;s 1st in
-          the standings after Saturday plays whoever&apos;s 2nd. 3rd plays 4th. Win Saturday, you
-          get a crack at 1st place Sunday.
+          the standings after Saturday plays whoever&apos;s 2nd. 3rd plays 4th. Win Saturday, and
+          you&apos;re playing for 1st place Sunday, not just padding your own score.
         </p>
       </>
     ),
@@ -70,12 +81,16 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>
-          <b>Shamble (Saturday):</b> everyone in the duo tees off, you pick the best drive, then
-          everyone plays their own ball in from there. Best net score on the duo counts.
+          <b>Shamble (Saturday):</b> everyone in the duo tees off on every hole. You and your
+          partner pick whichever drive is better, then both of you play your own ball in from
+          there, all the way to the hole. It&apos;s chaos-friendly — one great drive can save the
+          whole hole for your team. Best net score between the two of you counts for the duo.
         </p>
         <p>
-          <b>Four-ball (Sunday):</b> play your own ball the whole hole, start to finish. Best net
-          score on the duo counts.
+          <b>Four-ball (Sunday):</b> no team tee shot, no picking the best drive — you play your
+          own ball from tee to green the entire hole, exactly like a normal round. Best net score
+          between you and your partner counts for the duo, same as Saturday, just with fully
+          independent golf all the way through.
         </p>
       </>
     ),
@@ -85,10 +100,13 @@ const SECTIONS: Section[] = [
     title: "Handicaps — you don't do any math",
     body: (
       <p>
-        Real GHIN index if you&apos;ve got one, an assigned number if you don&apos;t. The app
-        converts that into actual strokes for whatever course we&apos;re on that day, and shows
-        you exactly which holes you get a stroke on. You never calculate anything — just play,
-        the dots are already there.
+        Real GHIN index if you&apos;ve got one, an assigned number if you don&apos;t — either way,
+        everyone plays with a fair number. The app converts your index into actual strokes for
+        whatever course and tees we&apos;re on that day, using the course&apos;s real rating and
+        slope, and shows you exactly which holes you get a stroke on (the toughest holes on the
+        card get the first strokes, easiest holes get the last ones, if you&apos;re getting enough
+        to wrap around twice). You never calculate anything, never guess — the dots are already
+        sitting on your scorecard before you ever tee off.
       </p>
     ),
   },
@@ -96,12 +114,22 @@ const SECTIONS: Section[] = [
     key: "doovers",
     title: "Do-overs",
     body: (
-      <p>
-        Once a round: one breakfast ball (redo your very first tee shot only) and one mulligan
-        (redo any other shot, except once you&apos;re on the green). Whatever you make after the
-        do-over is your real score — it counts everywhere: the match, skins, your individual
-        total.
-      </p>
+      <>
+        <p>Once per round, you get two do-overs, and they&apos;re different:</p>
+        <p>
+          Breakfast ball — a mulligan on your very first tee shot of the round only. Rough opening
+          drive? Re-tee it, no questions asked.
+        </p>
+        <p>
+          Mulligan — a redo on any other shot in the round, except once your ball&apos;s on the
+          green (no re-putting with this one). Use it on a shanked approach, a bad chip, whatever.
+        </p>
+        <p>
+          Either way: whatever you make after the do-over is your real, final score for that hole.
+          It&apos;s not a secret bonus — it counts everywhere the same as any other shot: the
+          match, skins, your individual total.
+        </p>
+      </>
     ),
   },
   {
@@ -110,20 +138,33 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>
-          Once per team, per round. Either of your duos can use it — it&apos;s shared across the
-          whole team, not one per duo.
+          This is the one weapon in the whole trip that lets you mess with someone else&apos;s
+          shot, not just your own.
         </p>
         <p>
-          Here&apos;s how it works: your team can force an opponent to replay any one shot — a
-          drive, an approach, even a putt. He hits it again and plays on from there. He
-          doesn&apos;t play two balls.
+          Once per team, per round — and it belongs to the whole team, not to one duo. Whichever
+          of your team&apos;s two duos needs it first gets to use it; once it&apos;s gone,
+          it&apos;s gone for both of you, even if you&apos;re out on a different hole at the same
+          time.
         </p>
         <p>
-          The twist: if the shot you&apos;re reversing was already in the hole, it still counts
-          as made for that guy&apos;s own skins and individual race — even though your team&apos;s
-          match sees the miss. Everything else, the replay is just the real, final score.
+          Here&apos;s the move: your team can force an opponent to replay any one shot he just
+          hit — a drive, an approach, a chip, even a putt. He has to hit it again, right then, and
+          play on from wherever the new ball ends up. He does not get to keep his first ball and
+          play two — the replay is the shot now.
         </p>
-        <p>Call it immediately, before the next shot — or it&apos;s gone.</p>
+        <p>
+          The one exception, and it matters: if the shot you&apos;re reversing was already in the
+          hole — like he just drained a birdie putt — that made shot still counts as real for his
+          own skins and his own spot in the individual race. Your team&apos;s match sees his miss
+          on the redo, but his personal scorecard and money still show the shot that actually
+          went in. You can sabotage the team match; you can&apos;t erase a guy&apos;s birdie from
+          his own life.
+        </p>
+        <p>
+          Timing matters: you have to call it immediately, before the next shot gets hit. Wait too
+          long, and it&apos;s off the table.
+        </p>
       </>
     ),
   },
@@ -131,10 +172,17 @@ const SECTIONS: Section[] = [
     key: "individualRace",
     title: "Individual race",
     body: (
-      <p>
-        Runs the whole weekend, separate from the team stuff. Lowest cumulative net across both
-        rounds wins. Daily low net gets a nod too (no cash, just bragging rights).
-      </p>
+      <>
+        <p>
+          Runs the whole weekend, completely separate from the team stuff — this is just about
+          you. Every shot you hit, minus whatever strokes your handicap gives you, adds up across
+          both rounds. Lowest total wins, same as a normal golf tournament.
+        </p>
+        <p>
+          Daily low net gets a nod each day too — no cash attached, just bragging rights for
+          having the best round of the day.
+        </p>
+      </>
     ),
   },
   {
@@ -142,16 +190,29 @@ const SECTIONS: Section[] = [
     title: "Money — two things, that's it",
     body: (
       <>
+        <p>Two things, and that&apos;s genuinely it — no other side bets are built into the app.</p>
         <p>
-          <b>Skins:</b> opt in before your round&apos;s tee time (once you&apos;re in, you
-          can&apos;t back out). Gross score, lowest score on a hole wins it outright — no strokes
-          given. Tie for low? It carries to the next hole. If a round ends with skins still
-          unclaimed, that pot doesn&apos;t disappear — it rolls forward into the next round.
+          <b>Skins.</b> Opt in before your round&apos;s own tee time — once you&apos;re in,
+          you&apos;re in for the whole round, no backing out partway through. Gross score (no
+          handicap strokes here), lowest score on a hole wins the whole pot for that hole
+          outright.
         </p>
         <p>
-          <b>The Challenge Ledger:</b> any bet, anytime, between any two guys. Log it in the app,
-          the other guy taps to accept — that&apos;s what makes it official. Settle it when
-          it&apos;s decided. Shows up in your running total.
+          If two or more guys tie for the low score on a hole, nobody wins it — the money carries
+          to the next hole, stacking up. So if hole 4 ties, whatever&apos;s riding on it rolls
+          into hole 5&apos;s pot too, and keeps stacking until someone wins a hole outright.
+        </p>
+        <p>
+          And if a whole round ends with skins still unclaimed — say the very last hole ties too —
+          that money doesn&apos;t just disappear. It rolls forward into the next round&apos;s pot,
+          so it&apos;s always fully in play until someone actually wins it.
+        </p>
+        <p>
+          <b>The Challenge Ledger.</b> Any bet, between any two guys, about anything — closest to
+          the pin, first three-putt of the day, whatever you dream up mid-round. Log it in the app
+          with the terms and the stake. The other guy has to tap accept — that&apos;s what
+          actually makes it official, not just typing it in. Once it&apos;s decided, mark the
+          winner and it lands in both your running totals.
         </p>
       </>
     ),
@@ -160,11 +221,27 @@ const SECTIONS: Section[] = [
     key: "ties",
     title: "How ties get broken",
     body: (
-      <p>
-        Never in the app. If the automatic tiebreakers still leave it dead even — for the Cup,
-        the individual title, or Sunday&apos;s pairings — it comes down to a chip-off. Grab a
-        wedge.
-      </p>
+      <>
+        <p>
+          Nothing ever gets decided by the app flipping a coin — there&apos;s always a real
+          tiebreaker, and if that runs out, it comes down to actual golf.
+        </p>
+        <p>
+          For the Cup and for Sunday&apos;s earned pairings: first it&apos;s total points, then
+          head-to-head (if those two teams already played each other), then total holes won across
+          the whole weekend.
+        </p>
+        <p>
+          For the individual title, it&apos;s different: first it&apos;s lowest cumulative net,
+          then whoever played the better net round on Sunday, then whoever played the better net
+          back-9 on Sunday.
+        </p>
+        <p>
+          If either of those ladders somehow still ends dead even — genuinely tied after all of
+          that — it comes down to a chip-off. Grab a wedge, head to the practice green, and settle
+          it like it&apos;s supposed to be settled.
+        </p>
+      </>
     ),
   },
 ];
