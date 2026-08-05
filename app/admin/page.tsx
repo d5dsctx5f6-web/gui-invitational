@@ -94,6 +94,7 @@ interface HoleScoreRow {
   match_strokes: number | null;
   breakfast_ball: boolean;
   mulligan: boolean;
+  mercy_called: boolean;
 }
 interface ChallengeBet {
   id: string;
@@ -307,7 +308,19 @@ async function loadHoleScores(roundId: string | undefined) {
     .select("id, player_id, round_id, hole, strokes, match_strokes, breakfast_ball, mulligan")
     .eq("round_id", roundId)
     .order("hole");
-  return (data ?? []) as HoleScoreRow[];
+  // Brief 29: mercy_called (migration 0024) fetched separately so Corrections still renders on
+  // a database that hasn't run it yet — same decoupled-fetch pattern used throughout this file.
+  const { data: mercyRows } = await supabase
+    .from("hole_scores")
+    .select("id, mercy_called")
+    .eq("round_id", roundId);
+  const mercyById = new Map<string, boolean>(
+    (mercyRows ?? []).map((r) => [r.id, r.mercy_called]),
+  );
+  return (data ?? []).map((row) => ({
+    ...row,
+    mercy_called: mercyById.get(row.id) ?? false,
+  })) as HoleScoreRow[];
 }
 
 export default async function AdminPage({
@@ -1274,6 +1287,9 @@ function CorrectionRow({
         </label>
         <label className={styles.checkboxLabel}>
           <input type="checkbox" name="mulligan" defaultChecked={row.mulligan} /> Mull
+        </label>
+        <label className={styles.checkboxLabel}>
+          <input type="checkbox" name="mercyCalled" defaultChecked={row.mercy_called} /> Mercy
         </label>
         <button className={styles.btn} type="submit">
           Save

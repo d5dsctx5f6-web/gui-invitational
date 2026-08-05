@@ -397,6 +397,7 @@ export async function correctHoleScore(formData: FormData) {
   const matchStrokes = matchStrokesRaw === "" ? null : Number(matchStrokesRaw);
   const breakfastBall = formData.get("breakfastBall") === "on";
   const mulligan = formData.get("mulligan") === "on";
+  const mercyCalled = formData.get("mercyCalled") === "on";
 
   // Brief 20: Corrections is now a round -> match -> hole drill-down. Without carrying this
   // context through the redirect, every save would bounce back to round 1 / no match / hole 1
@@ -430,6 +431,7 @@ export async function correctHoleScore(formData: FormData) {
       match_strokes: matchStrokes,
       breakfast_ball: breakfastBall,
       mulligan,
+      mercy_called: mercyCalled,
     })
     .eq("id", id);
   if (error) flashHere("err", error.message);

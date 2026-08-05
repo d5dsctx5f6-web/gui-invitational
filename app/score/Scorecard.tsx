@@ -31,6 +31,7 @@ interface HoleEntry {
   matchStrokes: number | null;
   breakfastBall: boolean;
   mulligan: boolean;
+  mercyCalled: boolean;
 }
 
 function firstUnpostedHole(
@@ -46,7 +47,7 @@ function firstUnpostedHole(
   return 18;
 }
 
-function rmKey(playerId: string, hole: number): string {
+function holeKey(playerId: string, hole: number): string {
   return `${playerId}:${hole}`;
 }
 
@@ -62,7 +63,7 @@ function entriesForHole(
     const existing = postedScores.find(
       (s) => s.playerId === p.id && s.hole === hole,
     );
-    const rm = rmByPlayerHole.get(rmKey(p.id, hole));
+    const rm = rmByPlayerHole.get(holeKey(p.id, hole));
     const holedRm = rm && rm.originalHoledScore !== null ? rm : null;
 
     if (holedRm) {
@@ -73,6 +74,7 @@ function entriesForHole(
         matchStrokes: existing?.matchStrokes ?? holedRm.originalHoledScore!,
         breakfastBall: existing?.breakfastBall ?? false,
         mulligan: existing?.mulligan ?? false,
+        mercyCalled: existing?.mercyCalled ?? false,
       };
     } else {
       next[p.id] = existing
@@ -81,8 +83,15 @@ function entriesForHole(
             matchStrokes: existing.matchStrokes,
             breakfastBall: existing.breakfastBall,
             mulligan: existing.mulligan,
+            mercyCalled: existing.mercyCalled,
           }
-        : { strokes: par, matchStrokes: null, breakfastBall: false, mulligan: false };
+        : {
+            strokes: par,
+            matchStrokes: null,
+            breakfastBall: false,
+            mulligan: false,
+            mercyCalled: false,
+          };
     }
   }
   return next;
@@ -153,14 +162,22 @@ export function Scorecard({
 
   async function refetchHoleScores() {
     const supabase = createClient();
+    const playerIds = allPlayers.map((p) => p.id);
     const { data: rows } = await supabase
       .from("hole_scores")
       .select("player_id, hole, strokes, match_strokes, breakfast_ball, mulligan")
       .eq("round_id", data.roundId)
-      .in(
-        "player_id",
-        allPlayers.map((p) => p.id),
-      );
+      .in("player_id", playerIds);
+    // Brief 29: mercy_called decoupled from the core refetch, same reasoning as the initial
+    // server-side load — a database that hasn't run migration 0024 yet keeps refetching fine.
+    const { data: mercyRows } = await supabase
+      .from("hole_scores")
+      .select("player_id, hole, mercy_called")
+      .eq("round_id", data.roundId)
+      .in("player_id", playerIds);
+    const mercyByKey = new Map<string, boolean>(
+      (mercyRows ?? []).map((r) => [holeKey(r.player_id, r.hole), r.mercy_called]),
+    );
     setPostedScores(
       (rows ?? []).map((r) => ({
         playerId: r.player_id,
@@ -169,6 +186,7 @@ export function Scorecard({
         matchStrokes: r.match_strokes,
         breakfastBall: r.breakfast_ball,
         mulligan: r.mulligan,
+        mercyCalled: mercyByKey.get(holeKey(r.player_id, r.hole)) ?? false,
       })),
     );
   }
@@ -200,7 +218,7 @@ export function Scorecard({
 
   const rmByPlayerHole = useMemo(() => {
     const map = new Map<string, ScorecardReverseMulligan>();
-    for (const e of rmEvents) map.set(rmKey(e.victimPlayerId, e.hole), e);
+    for (const e of rmEvents) map.set(holeKey(e.victimPlayerId, e.hole), e);
     return map;
   }, [rmEvents]);
 
@@ -377,6 +395,25 @@ export function Scorecard({
     }));
   }
 
+  // Brief 29: unlike breakfast ball/mulligan, mercy has no per-round usage limit — any hole, any
+  // number of times, no "used elsewhere" check. Toggling on caps the stroke entry at this hole's
+  // par + 4; the scorekeeper can still adjust it afterward with the normal steppers, and the
+  // mercy flag stays recorded either way. Toggling off doesn't force the number back to anything.
+  function toggleMercy(playerId: string) {
+    setEntries((prev) => {
+      const current = prev[playerId];
+      const nowCalled = !current.mercyCalled;
+      return {
+        ...prev,
+        [playerId]: {
+          ...current,
+          mercyCalled: nowCalled,
+          strokes: nowCalled ? holeMeta.par + 4 : current.strokes,
+        },
+      };
+    });
+  }
+
   async function postHole() {
     const postedHole = currentHole;
     setPosting(true);
@@ -384,7 +421,7 @@ export function Scorecard({
     setSuccessMessage(null);
 
     const rows = allPlayers.map((p) => {
-      const holedRm = rmByPlayerHole.get(rmKey(p.id, postedHole));
+      const holedRm = rmByPlayerHole.get(holeKey(p.id, postedHole));
       const hasDivergence = holedRm?.originalHoledScore != null;
       return {
         player_id: p.id,
@@ -394,6 +431,7 @@ export function Scorecard({
         match_strokes: hasDivergence ? entries[p.id].matchStrokes : null,
         breakfast_ball: entries[p.id].breakfastBall,
         mulligan: entries[p.id].mulligan,
+        mercy_called: entries[p.id].mercyCalled,
       };
     });
 
@@ -421,6 +459,7 @@ export function Scorecard({
         matchStrokes: r.match_strokes,
         breakfastBall: r.breakfast_ball,
         mulligan: r.mulligan,
+        mercyCalled: r.mercy_called,
       }));
       return [...withoutThisHole, ...newRows];
     });
@@ -625,7 +664,7 @@ export function Scorecard({
           const bbUsedElsewhere =
             currentHole === 1 ? null : usedOnOtherHole(p.id, "breakfastBall");
           const mullUsedElsewhere = usedOnOtherHole(p.id, "mulligan");
-          const holedRm = rmByPlayerHole.get(rmKey(p.id, currentHole));
+          const holedRm = rmByPlayerHole.get(holeKey(p.id, currentHole));
           const hasDivergence = holedRm?.originalHoledScore != null;
 
           return (
@@ -682,6 +721,16 @@ export function Scorecard({
                       : entry.mulligan
                         ? "Mull — will use"
                         : "Mull avail"}
+                  </button>
+                  {/* Brief 29: no per-round limit, unlike BB/mulligan — no "used elsewhere"
+                      disabled state, callable on any hole any number of times. */}
+                  <button
+                    className={`${styles.chip} ${
+                      entry.mercyCalled ? styles.chipPending : styles.chipAvail
+                    }`}
+                    onClick={() => toggleMercy(p.id)}
+                  >
+                    {entry.mercyCalled ? "Mercy called" : "Mercy"}
                   </button>
                 </div>
               </div>

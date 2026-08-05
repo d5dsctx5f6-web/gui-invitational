@@ -105,6 +105,19 @@ async function loadScorecardData(match: MatchRow): Promise<ScorecardData | null>
     .eq("round_id", match.round_id)
     .in("player_id", allPlayerIds);
 
+  // Brief 29: mercy_called (migration 0024) fetched separately so a database that hasn't run
+  // it yet still loads the scorecard — same decoupled-fetch pattern as tee_time/skins_buy_in.
+  // This query failing (or the column not existing) should only affect the mercy flag, never
+  // break hole_scores loading for everyone.
+  const { data: mercyRows } = await supabase
+    .from("hole_scores")
+    .select("player_id, hole, mercy_called")
+    .eq("round_id", match.round_id)
+    .in("player_id", allPlayerIds);
+  const mercyByKey = new Map<string, boolean>(
+    (mercyRows ?? []).map((r) => [`${r.player_id}:${r.hole}`, r.mercy_called]),
+  );
+
   const { data: rmRows } = await supabase
     .from("reverse_mulligans")
     .select("id, team_id, hole, victim_player_id, original_holed_score")
@@ -157,6 +170,7 @@ async function loadScorecardData(match: MatchRow): Promise<ScorecardData | null>
       matchStrokes: row.match_strokes,
       breakfastBall: row.breakfast_ball,
       mulligan: row.mulligan,
+      mercyCalled: mercyByKey.get(`${row.player_id}:${row.hole}`) ?? false,
     }),
   );
 

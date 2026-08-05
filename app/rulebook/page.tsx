@@ -133,6 +133,24 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    key: "mercy",
+    title: "Calling mercy",
+    body: (
+      <>
+        <p>
+          Some holes just aren&apos;t happening. If you&apos;re not going to finish — you pick up,
+          or you just call it — the most that hole can cost you is a quadruple bogey, gross. Par 4
+          hole, worst case an 8 goes on the card. Par 5, worst case a 9.
+        </p>
+        <p>
+          You don&apos;t have to use it. If you&apos;d rather keep hacking away and post whatever
+          you actually make, that&apos;s fine too. Mercy&apos;s just there so one disaster hole
+          doesn&apos;t wreck your whole day — or hold up the group behind you.
+        </p>
+      </>
+    ),
+  },
+  {
     key: "reverseMulligan",
     title: "The reverse mulligan — the team weapon",
     body: (

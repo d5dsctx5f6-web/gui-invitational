@@ -22,6 +22,9 @@ export interface ExistingHoleScore {
   matchStrokes: number | null;
   breakfastBall: boolean;
   mulligan: boolean;
+  /** Brief 29: the mercy rule — gross capped at that hole's par + 4. Unlike breakfast
+   *  ball/mulligan, no per-round usage limit. */
+  mercyCalled: boolean;
 }
 
 export interface ScorecardDuo {
