@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
+import { EVENT_NAME } from "@/lib/config";
 import { IdentityPicker } from "./IdentityPicker";
 import styles from "./page.module.css";
 
@@ -16,7 +17,7 @@ export default async function Home() {
 
   return (
     <main className={styles.page}>
-      <h1 className={styles.masthead}>THE GUI INVITATIONAL</h1>
+      <h1 className={styles.masthead}>{EVENT_NAME.toUpperCase()}</h1>
       <p className={styles.subhead}>YEAR ONE &middot; MMXXVII</p>
 
       <Link href="/leaderboard" className={styles.leaderboardLink}>

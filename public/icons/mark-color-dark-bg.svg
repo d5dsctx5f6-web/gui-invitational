@@ -1,0 +1,5 @@
+<!-- color variant tuned for dark surfaces: North's blue brightened to the dark-mode n value -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect x="5" y="5" width="9" height="23" fill="#2C5EB0"/>
+  <rect x="18" y="10" width="9" height="18" fill="#B9975B"/>
+</svg>

@@ -1,0 +1,32 @@
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--bd);
+  border-radius: var(--radius-lg);
+  background: var(--surf2);
+  padding: 3px;
+  gap: 2px;
+}
+
+.option {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--tx2);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.option:hover {
+  color: var(--tx);
+}
+
+.active {
+  background: var(--surf);
+  color: var(--tx);
+  box-shadow: var(--shadow);
+}

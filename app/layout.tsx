@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Oswald, Marcellus } from "next/font/google";
+import { EVENT_NAME } from "@/lib/config";
 import "./globals.css";
 
 const oswald = Oswald({
@@ -14,11 +15,15 @@ const marcellus = Marcellus({
 });
 
 export const metadata: Metadata = {
-  title: "The GUI Invitational",
-  description: "Live scoring for the GUI Invitational golf trip",
+  title: EVENT_NAME,
+  description: `Live scoring for the ${EVENT_NAME} golf trip`,
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/icon-512.png",
+    icon: [
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
     apple: "/icons/apple-touch-icon.png",
   },
 };

@@ -1,0 +1,58 @@
+.button {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 13px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard),
+    filter var(--duration-fast) var(--ease-standard);
+  min-height: 44px;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary — the mockup's "Post hole" CTA: solid --live, dark ink for contrast on the amber. */
+.primary {
+  background: var(--live);
+  color: #1a1200;
+  box-shadow: var(--shadow);
+}
+.primary:not(:disabled):hover {
+  filter: brightness(1.06);
+}
+
+/* Secondary — the mockup's "Replay reveal" control: neutral surface, visible border. */
+.secondary {
+  background: var(--surf2);
+  border-color: var(--bd2);
+  color: var(--tx);
+}
+.secondary:not(:disabled):hover {
+  background: var(--surf3);
+}
+
+/* Ghost — the mockup's "← Cup" back link: no fill, quiet until interacted with. */
+.ghost {
+  background: transparent;
+  color: var(--tx2);
+  border-color: var(--bd);
+}
+.ghost:not(:disabled):hover {
+  background: var(--surf2);
+}
+
+/* Destructive — same shape as secondary, loss-red ink/border for a clearly dangerous action. */
+.destructive {
+  background: var(--loss-soft);
+  border-color: var(--loss);
+  color: var(--loss);
+}
+.destructive:not(:disabled):hover {
+  filter: brightness(0.96);
+}

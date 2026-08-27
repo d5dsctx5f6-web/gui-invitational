@@ -1,0 +1,100 @@
+/* THE HEDGES INVITATIONAL — DESIGN TOKENS v1.0
+   Extracted from the approved Claude Design mockup (Hedges Invitational.dc.html), Aug 2026.
+   This file — not the _ds/Modernist folder from the export zip — is the canonical source.
+   The Modernist folder is an unused, mismatched org-default template bundled by Claude Design's
+   export; the actual mockup ignores it entirely and hand-builds the system below instead.
+   If /design-sync or any tool is pointed at the export, point it at THIS file, not _ds/. */
+
+:root,
+[data-theme="light"] {
+  /* Surfaces */
+  --bg: #F4F5F7;
+  --surf: #FFFFFF;
+  --surf2: #EDEFF2;
+  --surf3: #E3E7EC;
+  --bd: #D8DCE2;
+  --bd2: #C2C9D3;
+  --desk: #DDE1E6; /* the "phone on a desk" backdrop in the mockup preview only — not an in-app surface */
+
+  /* Text */
+  --tx: #0E1319;
+  --tx2: #48525F;
+  --tx3: #6F7986;
+
+  /* Team colors — fixed identity, MSU's actual school colors */
+  --n: #00205B;      /* North Hedges — MSU Blue, PMS 281 */
+  --n-ink: #00205B;
+  --n-soft: #E3E9F5;
+  --s: #B9975B;       /* South Hedges — MSU Gold, PMS 465 */
+  --s-ink: #7A5C22;
+  --s-soft: #F4EBDA;
+
+  /* Semantic — deliberately distinct from both team colors */
+  --live: #FFB020;
+  --live-ink: #8A5600;
+  --live-soft: #FFF1D6;
+  --win: #157F3C;
+  --win-soft: #DFF2E5;
+  --loss: #C0392B;
+  --loss-soft: #FBE4E1;
+  --halve: #7F8A98;
+  --halve-soft: #E7EAEE;
+
+  /* Elevation — light mode uses soft shadow */
+  --shadow: 0 1px 2px rgba(14,19,25,.07), 0 2px 8px rgba(14,19,25,.05);
+  --shadow-up: 0 -2px 12px rgba(14,19,25,.07);
+}
+
+[data-theme="dark"] {
+  /* Surfaces — its own scale, not an inversion */
+  --bg: #0A0C10;
+  --surf: #14171D;
+  --surf2: #1B1F26;
+  --surf3: #232830;
+  --bd: #282E38;
+  --bd2: #3A424E;
+  --desk: #050609;
+
+  /* Text */
+  --tx: #F6F8FA;
+  --tx2: #AAB3C0;
+  --tx3: #818B99;
+
+  /* Team colors — North brightens for dark-surface contrast; South's gold already reads fine as-is */
+  --n: #2C5EB0;
+  --n-ink: #8AB0EE;
+  --n-soft: #14213A;
+  --s: #B9975B;
+  --s-ink: #DCBE85;
+  --s-soft: #2A2317;
+
+  /* Semantic */
+  --live: #FFB020;
+  --live-ink: #FFC65C;
+  --live-soft: #2E2410;
+  --win: #2FBF6A;
+  --win-soft: #12301F;
+  --loss: #F0554A;
+  --loss-soft: #331715;
+  --halve: #8B96A4;
+  --halve-soft: #232830;
+
+  /* Elevation — dark mode uses borders/surface-shift, not shadow */
+  --shadow: none;
+  --shadow-up: none;
+}
+
+/* Typography */
+:root {
+  --font-ui: 'Inter', system-ui, sans-serif;       /* body, labels, interface text */
+  --font-display: 'Barlow Condensed', sans-serif;   /* scores, hole numbers, match state, headings */
+}
+
+/* Google Fonts import used by the mockup — swap for self-hosted/next/font in the real build */
+/* @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700&display=swap'); */
+
+/* Motion, referenced by name in the mockup — durations/easing observed in use */
+/* hedgeFlash   .5s  — a row flashing in on a live feed update */
+/* hedgeDrop    .42s cubic-bezier(.2,.9,.3,1.2) — Pairings Night board reveal */
+/* hedgePulse   1.4s ease-in-out infinite — the "live" dot */
+/* hedgePop     .22s cubic-bezier(.2,.9,.3,1.2) — the post-hole confirmation sheet */

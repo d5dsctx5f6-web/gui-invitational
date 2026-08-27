@@ -1,0 +1,28 @@
+/* The mockup's "2UP"/"AS" match-state badge: Barlow Condensed, tight, colored by which side is
+   ahead (team-soft background) or whether the match is level (halve) or in progress (live). */
+.pill {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+.north-up {
+  background: var(--n-soft);
+  color: var(--n-ink);
+}
+.south-up {
+  background: var(--s-soft);
+  color: var(--s-ink);
+}
+.all-square {
+  background: var(--halve-soft);
+  color: var(--halve);
+}
+.live {
+  background: var(--live-soft);
+  color: var(--live-ink);
+}

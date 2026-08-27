@@ -1,0 +1,152 @@
+/* THE HEDGES INVITATIONAL — DESIGN TOKENS v1.0
+   Extracted from the approved Claude Design mockup (Hedges Invitational.dc.html), Aug 2026.
+   This file — not the _ds/Modernist folder from the export zip — is the canonical source.
+   The Modernist folder is an unused, mismatched org-default template bundled by Claude Design's
+   export; the actual mockup ignores it entirely and hand-builds the system below instead.
+   If /design-sync or any tool is pointed at the export, point it at THIS file, not _ds/.
+
+   Brief 30 — ported wholesale, unmodified, from the architect-delivered hedges-tokens.css.
+   Loaded only on the /design-preview route (imported from its nested layout, not the root
+   layout), so none of these custom properties reach any existing live screen. */
+
+:root,
+[data-theme="light"] {
+  /* Surfaces */
+  --bg: #F4F5F7;
+  --surf: #FFFFFF;
+  --surf2: #EDEFF2;
+  --surf3: #E3E7EC;
+  --bd: #D8DCE2;
+  --bd2: #C2C9D3;
+  --desk: #DDE1E6; /* the "phone on a desk" backdrop in the mockup preview only — not an in-app surface */
+
+  /* Text */
+  --tx: #0E1319;
+  --tx2: #48525F;
+  --tx3: #6F7986;
+
+  /* Team colors — fixed identity, MSU's actual school colors */
+  --n: #00205B;      /* North Hedges — MSU Blue, PMS 281 */
+  --n-ink: #00205B;
+  --n-soft: #E3E9F5;
+  --s: #B9975B;       /* South Hedges — MSU Gold, PMS 465 */
+  --s-ink: #7A5C22;
+  --s-soft: #F4EBDA;
+
+  /* Semantic — deliberately distinct from both team colors */
+  --live: #FFB020;
+  --live-ink: #8A5600;
+  --live-soft: #FFF1D6;
+  --win: #157F3C;
+  --win-soft: #DFF2E5;
+  --loss: #C0392B;
+  --loss-soft: #FBE4E1;
+  --halve: #7F8A98;
+  --halve-soft: #E7EAEE;
+
+  /* Elevation — light mode uses soft shadow */
+  --shadow: 0 1px 2px rgba(14,19,25,.07), 0 2px 8px rgba(14,19,25,.05);
+  --shadow-up: 0 -2px 12px rgba(14,19,25,.07);
+}
+
+[data-theme="dark"] {
+  /* Surfaces — its own scale, not an inversion */
+  --bg: #0A0C10;
+  --surf: #14171D;
+  --surf2: #1B1F26;
+  --surf3: #232830;
+  --bd: #282E38;
+  --bd2: #3A424E;
+  --desk: #050609;
+
+  /* Text */
+  --tx: #F6F8FA;
+  --tx2: #AAB3C0;
+  --tx3: #818B99;
+
+  /* Team colors — North brightens for dark-surface contrast; South's gold already reads fine as-is */
+  --n: #2C5EB0;
+  --n-ink: #8AB0EE;
+  --n-soft: #14213A;
+  --s: #B9975B;
+  --s-ink: #DCBE85;
+  --s-soft: #2A2317;
+
+  /* Semantic */
+  --live: #FFB020;
+  --live-ink: #FFC65C;
+  --live-soft: #2E2410;
+  --win: #2FBF6A;
+  --win-soft: #12301F;
+  --loss: #F0554A;
+  --loss-soft: #331715;
+  --halve: #8B96A4;
+  --halve-soft: #232830;
+
+  /* Elevation — dark mode uses borders/surface-shift, not shadow */
+  --shadow: none;
+  --shadow-up: none;
+}
+
+/* Typography */
+:root {
+  --font-ui: 'Inter', system-ui, sans-serif;       /* body, labels, interface text */
+  --font-display: 'Barlow Condensed', sans-serif;   /* scores, hole numbers, match state, headings */
+}
+
+/* ---------------------------------------------------------------------------------------
+   Everything below this line is Brief 30's own addition (Part D — spacing/radius/elevation/
+   motion). Part D was NOT marked locked/delivered in the brief, unlike the color/type tokens
+   above — these values are derived from the radii and animation timings actually used
+   throughout the approved mockup's inline styles, generalized into a real scale rather than
+   left as ad-hoc per-element pixel values. */
+
+:root {
+  /* Spacing — 4px base grid, applied everywhere instead of one-off values */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  /* Radius — tighter, more consistent than the old .tile system's ad-hoc values.
+     Matches what the mockup actually uses: 3px hole-strip cells, 4-5px small chips,
+     6px the default for cards/buttons/list rows, 8px for primary surfaces/CTAs,
+     12px for sheets/modals. */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 999px;
+
+  /* Motion — reused by name rather than every component inventing its own transition.
+     Named after the mockup's own keyframes (hedgePop, hedgeDrop, hedgeFlash, hedgePulse). */
+  --ease-snap: cubic-bezier(.2, .9, .3, 1.2);
+  --ease-standard: ease-in-out;
+  --duration-fast: 220ms;   /* taps/toggles — hedgePop */
+  --duration-base: 420ms;   /* state transitions, e.g. a live score landing — hedgeDrop */
+  --duration-slow: 500ms;   /* a row flashing in on a live feed update — hedgeFlash */
+  --duration-pulse: 1400ms; /* the "live" dot — hedgePulse */
+}
+
+@keyframes hedgeFlash {
+  0% { transform: translateY(-6px); opacity: 0; background: var(--live-soft); }
+  30% { opacity: 1; transform: translateY(0); }
+  100% { background: transparent; }
+}
+@keyframes hedgeDrop {
+  0% { transform: translateY(-14px) scale(.97); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes hedgePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .25; }
+}
+@keyframes hedgePop {
+  0% { transform: scale(.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}

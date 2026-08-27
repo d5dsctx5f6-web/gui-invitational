@@ -38,7 +38,7 @@ function rankingBlock(title: string, ranking: typeof FULL_TRIP_RANKING) {
 }
 
 console.log("=".repeat(78));
-console.log("THE GUI INVITATIONAL -- YEAR ONE -- SIMULATED TRIP AUDIT (M2 gate)");
+console.log("THE HEDGES INVITATIONAL -- YEAR ONE -- SIMULATED TRIP AUDIT (M2 gate)");
 console.log("=".repeat(78));
 
 console.log("\n-- SATURDAY: SHAMBLE --");

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { EVENT_NAME } from "@/lib/config";
 import pageStyles from "../page.module.css";
 import styles from "./champions.module.css";
 
@@ -90,7 +91,7 @@ export default async function ChampionsPage() {
 
         return (
           <div className={styles.plinth} key={season.id}>
-            <h2 className={styles.masthead}>THE GUI INVITATIONAL</h2>
+            <h2 className={styles.masthead}>{EVENT_NAME.toUpperCase()}</h2>
             <div className={styles.yr}>
               {season.name.toUpperCase()} · {romanish(season.year)}
             </div>

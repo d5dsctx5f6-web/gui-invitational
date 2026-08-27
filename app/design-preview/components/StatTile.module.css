@@ -1,0 +1,34 @@
+.tile {
+  border: 1px solid var(--bd);
+  border-radius: var(--radius-lg);
+  background: var(--surf);
+  box-shadow: var(--shadow);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tx3);
+}
+
+.value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--tx);
+}
+
+.accent-north .value {
+  color: var(--n-ink);
+}
+.accent-south .value {
+  color: var(--s-ink);
+}

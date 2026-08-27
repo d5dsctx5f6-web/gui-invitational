@@ -1,4 +1,4 @@
-# The GUI Invitational
+# The Hedges Invitational
 
 Live-scoring PWA for a 16-man golf trip, March 26–28, 2027.
 

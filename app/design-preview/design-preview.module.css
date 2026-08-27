@@ -1,0 +1,213 @@
+.page {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--font-ui);
+  padding: var(--space-6) var(--space-4) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.lockupText {
+  display: flex;
+  flex-direction: column;
+}
+
+.lockupTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.02em;
+}
+
+.lockupSub {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--tx3);
+}
+
+.devBadge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--live-ink);
+  background: var(--live-soft);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.sectionSub {
+  font-size: 12px;
+  color: var(--tx2);
+  margin-top: calc(var(--space-1) * -1);
+}
+
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+
+.swatch {
+  border: 1px solid var(--bd);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surf);
+}
+
+.swatchColor {
+  height: 56px;
+}
+
+.swatchLabel {
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.swatchName {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.swatchValue {
+  font-size: 10px;
+  color: var(--tx3);
+  font-family: monospace;
+}
+
+.typeRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--bd);
+}
+
+.typeLabel {
+  width: 140px;
+  flex: none;
+  font-size: 11px;
+  color: var(--tx3);
+  font-family: monospace;
+}
+
+.scaleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.scaleLabel {
+  width: 90px;
+  flex: none;
+  font-size: 11px;
+  color: var(--tx3);
+  font-family: monospace;
+}
+
+.spaceBar {
+  height: 16px;
+  background: var(--n);
+  border-radius: var(--radius-xs);
+}
+
+.radiusBox {
+  width: 56px;
+  height: 56px;
+  background: var(--n-soft);
+  border: 1px solid var(--n);
+}
+
+.motionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.pulseDot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--live);
+  animation: hedgePulse var(--duration-pulse) var(--ease-standard) infinite;
+}
+
+.dropDemo {
+  border: 1px solid var(--bd);
+  border-radius: var(--radius-md);
+  background: var(--surf);
+  padding: var(--space-2) var(--space-3);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dropDemo.animate {
+  animation: hedgeDrop var(--duration-base) var(--ease-snap) both;
+}
+
+.componentGallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.componentRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.componentLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tx3);
+}
+
+.inlineGroup {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cardGroup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}

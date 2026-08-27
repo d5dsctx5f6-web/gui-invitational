@@ -1,0 +1,37 @@
+.stepper {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 260px;
+}
+
+.dec,
+.inc {
+  height: 76px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--bd2);
+  background: var(--surf2);
+  color: var(--tx);
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+
+.dec:hover,
+.inc:hover {
+  background: var(--surf3);
+}
+
+.value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 44px;
+  line-height: 1;
+  color: var(--tx);
+  text-align: center;
+  min-width: 44px;
+}
