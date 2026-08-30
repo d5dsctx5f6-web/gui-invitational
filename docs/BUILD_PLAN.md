@@ -1,4 +1,4 @@
-# GUI INVITATIONAL — BUILD PLAN
+# THE HEDGES INVITATIONAL — BUILD PLAN
 
 **Now:** July 2026 · **Trip (the only hard date):** Mar 26–28, 2027 · **Draft:** run offline Fri Mar 26, entered via admin
 **Rule:** a milestone is complete when it survives Chris's thumbs on a real phone — never when described. v1.1

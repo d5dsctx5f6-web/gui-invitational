@@ -1,4 +1,4 @@
-# GUI INVITATIONAL — ARCHITECTURE
+# THE HEDGES INVITATIONAL — ARCHITECTURE
 
 **Status:** v1.2 — decisions locked at project setup; refine details in briefs, record changes here.
 

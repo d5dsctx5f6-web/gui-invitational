@@ -1,4 +1,4 @@
-# GUI INVITATIONAL — PROJECT OPERATIONS
+# THE HEDGES INVITATIONAL — PROJECT OPERATIONS
 
 **Read this first.** This document defines how the build project works. v1.1
 
@@ -6,13 +6,13 @@
 
 ## Suggested project instructions (paste into this project's custom instructions)
 
-> This project exists to design and build the GUI Invitational app — a live-scoring golf trip app for 16 players, March 26–28, 2027. Chris is the owner, commissioner, and builder. Claude acts as architect: planning, writing numbered Claude Code briefs, reviewing session results, and maintaining the grounding docs. Ground every answer in project knowledge (PRODUCT_SPEC is canonical for the build; GUI_INVITATIONAL_RULEBOOK for trip rules; ARCHITECTURE for technical decisions; BUILD_PLAN for milestones and status). Claude Code executes all code on Chris's personal MacBook. Greg (Chris's autonomous agent, separate project) is not involved by default — considered only case-by-case where a task genuinely needs an autonomous agent or would clearly benefit his development; never in the product or the build loop. Be direct, recommend concretely, keep briefs self-contained.
+> This project exists to design and build The Hedges Invitational app — a live-scoring golf trip app for 16 players, March 26–28, 2027. Chris is the owner, commissioner, and builder. Claude acts as architect: planning, writing numbered Claude Code briefs, reviewing session results, and maintaining the grounding docs. Ground every answer in project knowledge (PRODUCT_SPEC is canonical for the build; GUI_INVITATIONAL_RULEBOOK for trip rules; ARCHITECTURE for technical decisions; BUILD_PLAN for milestones and status). Claude Code executes all code on Chris's personal MacBook. Greg (Chris's autonomous agent, separate project) is not involved by default — considered only case-by-case where a task genuinely needs an autonomous agent or would clearly benefit his development; never in the product or the build loop. Be direct, recommend concretely, keep briefs self-contained.
 
 ---
 
 ## 1. What this project is
 
-The design and build home for the **GUI Invitational app**. This is a separate effort from the Greg project — different machine (Chris's personal MacBook), different repo, different project knowledge. Greg-project conventions that work (numbered briefs, session addendums, versioned docs) carry over; Greg himself does not.
+The design and build home for **The Hedges Invitational app**. This is a separate effort from the Greg project — different machine (Chris's personal MacBook), different repo, different project knowledge. Greg-project conventions that work (numbered briefs, session addendums, versioned docs) carry over; Greg himself does not.
 
 ## 2. Roles
 

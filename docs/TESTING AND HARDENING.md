@@ -1,4 +1,4 @@
-# GUI INVITATIONAL — TESTING & HARDENING PLAN
+# THE HEDGES INVITATIONAL — TESTING & HARDENING PLAN
 
 **Why this doc exists:** the entire weekend's scoring runs on this app, live, in front of 16 people with money on the line. A wrong skins payout or a blown match state on Saturday morning destroys trust in the app for the rest of the trip — and there's no paper backup once everyone's relying on it. Correctness is not a feature; it's the whole product. Testing is therefore built in at every milestone, not bolted on at the end. v1.0
 
