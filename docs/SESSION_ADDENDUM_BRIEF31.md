@@ -2,7 +2,9 @@
 
 **Date:** August 29, 2026
 
-**Status:** backend complete, not deployed — see "Build status" below before pushing.
+**Status:** backend complete, pushed to `origin/main` at Chris's direction — a temporarily red
+Vercel build is expected until Brief 32+ rebuilds the four affected screens (see "Build
+status"). Chris runs the actual migration in the Supabase SQL editor next.
 
 Read `PRODUCT_SPEC_V2.md` §2 in full before writing any code, per the brief's own instruction,
 not just the brief's summary of it. This is the largest brief in the project's history —
@@ -147,18 +149,21 @@ explicitly Briefs 32-35's job, and patching them now would mean writing throwawa
 against the old visual system just to silence a build error, then redoing it for real later.
 **What this means concretely**: if you push this to `main` and Vercel is watching it, the new
 deployment will fail to build — Vercel does not promote a failed build, so the *currently live*
-production site keeps serving the pre-Brief-31 version unaffected; nothing goes down. But
-none of this session's work goes live until either those four screens are rebuilt (Briefs
-32-35) or temporarily stubbed. I've committed this work locally but held off pushing to
-`origin/main` for exactly this reason — tell me whether you want it pushed now (accepting a
-red Vercel build until Brief 32+) or held until the frontend catches up.
+production site keeps serving the pre-Brief-31 version unaffected; nothing goes down.
+**Pushed to `origin/main` at Chris's explicit direction** — a temporarily red Vercel build
+until Brief 32+ rebuilds the four affected screens is expected and accepted, not a defect to
+chase. Chris is running the migration himself in the Supabase SQL editor next, same as always.
 
-## The open question from the brief
+## The open question from the brief — already resolved, not actually open
 
-Not resolved here, per the brief's own instruction not to invent a Rulebook decision:
-what happens if a team shows up 7 players instead of 8. The schema doesn't preclude a fix —
-`team_members` still has no forced-count CHECK, `duos.player_2_id` is nullable. Still needs
-your call before Brief 32 can handle it gracefully on the Pairings Night board.
+**Correction, not a new finding**: my report initially said this was still open. Chris flagged
+that it isn't — he and the architect already settled it before this brief started: the
+commissioner decides live, on the day, no fixed formula. What this brief built — no forced-8
+CHECK on `team_members`, `duos.player_2_id` nullable — is exactly the right shape for that
+resolution (a schema that doesn't presume a formula, so a live judgment call has somewhere to
+land), and needs nothing further. Leaving this note here rather than quietly deleting the
+original wrong claim, since the addendum should read as an accurate record, corrections
+included.
 
 ## Verified
 
@@ -179,5 +184,5 @@ your call before Brief 32 can handle it gracefully on the Pairings Night board.
 ## Next
 
 Brief 32 — the Pairings Night board, built against this brief's `duos` schema and Brief 30's
-design system together. Still needs your answer on the short-handed-team open question above
-before it can handle that scenario gracefully.
+design system together. Not blocked on anything from this brief — the short-handed-team
+question was already settled going in (see above), and the schema is already shaped for it.
