@@ -1,14 +1,21 @@
-// Duo-vs-duo match state: best-net-ball per hole, three independent segments
-// (front 9 / back 9 / overall 18), each worth 1 point (halve 1/2).
-// PRODUCT_SPEC §2 "Points" / "Rounds & formats".
+// Duo-vs-duo match state: one raw score per duo per hole (a scramble has one ball), three
+// independent segments (front 9 / back 9 / overall 18), each worth 1 point (halve 1/2).
+// PRODUCT_SPEC_V2 §2 "Points" / "Rounds & format". Segment shape (front/back/overall,
+// 1pt/½pt each, early-close detection) is unchanged from v1.0 — only the per-hole comparison
+// changed, from "best net ball among a duo's available players" to "this duo's one score,
+// mercy-capped" (Brief 31 Part B).
+
+import { cappedStrokes } from "./mercyCap";
 
 export type HoleWinner = "A" | "B" | "halved";
 
-export interface DuoHoleNets {
+export interface DuoHoleScore {
   hole: number; // 1-18
-  /** Net scores of the duo's available players on this hole. 0, 1, or 2 entries — count-agnostic. */
-  duoANet: number[];
-  duoBNet: number[];
+  par: number;
+  /** Raw strokes for this duo on this hole, uncapped. Null = not yet posted — count-agnostic:
+   *  an absence, never a crash or a zero. The mercy cap is applied here, never stored. */
+  duoAStrokes: number | null;
+  duoBStrokes: number | null;
 }
 
 export interface SegmentState {
@@ -28,23 +35,17 @@ export interface MatchState {
   totalPoints: { a: number; b: number };
 }
 
-/** Best (lowest) net ball among a duo's available players. Null if nobody has a score yet. */
-function bestBall(nets: number[]): number | null {
-  if (nets.length === 0) return null;
-  return Math.min(...nets);
-}
-
-function resolveHole(duoANet: number[], duoBNet: number[]): HoleWinner | null {
-  const a = bestBall(duoANet);
-  const b = bestBall(duoBNet);
-  if (a === null || b === null) return null;
+function resolveHole(h: DuoHoleScore): HoleWinner | null {
+  if (h.duoAStrokes === null || h.duoBStrokes === null) return null;
+  const a = cappedStrokes(h.duoAStrokes, h.par);
+  const b = cappedStrokes(h.duoBStrokes, h.par);
   if (a < b) return "A";
   if (b < a) return "B";
   return "halved";
 }
 
 function computeSegment(
-  holes: DuoHoleNets[],
+  holes: DuoHoleScore[],
   segmentHoleNumbers: number[],
 ): SegmentState {
   const segmentLength = segmentHoleNumbers.length;
@@ -57,8 +58,8 @@ function computeSegment(
   let closedEarly = false;
 
   for (const h of relevant) {
-    const result = resolveHole(h.duoANet, h.duoBNet);
-    if (result === null) continue; // absent duo / not-yet-entered hole — contributes nothing
+    const result = resolveHole(h);
+    if (result === null) continue; // not yet posted — contributes nothing
 
     thru++;
     if (result === "A") holesUp++;
@@ -93,31 +94,28 @@ function computeSegment(
 
 export interface HoleResult {
   hole: number;
-  /** Null if neither duo has a resolvable score yet (mirrors resolveHole's own null case). */
+  /** Null if the hole isn't resolvable yet (mirrors resolveHole's own null case). */
   winner: HoleWinner | null;
 }
 
-/**
- * Per-hole win/loss/halve results, hole order — the same resolveHole() already computed
- * internally by computeSegment/countHolesWon, just surfaced (Brief 23 Part A: this was already
- * correct and tested via those two callers; nothing new is computed here).
- */
-export function resolveHoleResults(holes: DuoHoleNets[]): HoleResult[] {
+/** Per-hole win/loss/halve results, hole order — the same resolveHole() computeSegment()/
+ *  countHolesWon() already use internally, just surfaced (unchanged shape since Brief 23). */
+export function resolveHoleResults(holes: DuoHoleScore[]): HoleResult[] {
   return holes
     .slice()
     .sort((x, y) => x.hole - y.hole)
-    .map((h) => ({ hole: h.hole, winner: resolveHole(h.duoANet, h.duoBNet) }));
+    .map((h) => ({ hole: h.hole, winner: resolveHole(h) }));
 }
 
 /**
- * Outright holes won per duo (halves excluded) — feeds the standings "total individual
- * holes won" tiebreaker (Addendum A). Reuses the same per-hole resolution as match state.
+ * Outright holes won per duo (halves excluded) — feeds the standings "total holes won"
+ * tiebreaker. Reuses the same per-hole resolution as match state.
  */
-export function countHolesWon(holes: DuoHoleNets[]): { a: number; b: number } {
+export function countHolesWon(holes: DuoHoleScore[]): { a: number; b: number } {
   let a = 0;
   let b = 0;
   for (const h of holes) {
-    const result = resolveHole(h.duoANet, h.duoBNet);
+    const result = resolveHole(h);
     if (result === "A") a++;
     else if (result === "B") b++;
   }
@@ -128,7 +126,7 @@ const FRONT_9 = Array.from({ length: 9 }, (_, i) => i + 1);
 const BACK_9 = Array.from({ length: 9 }, (_, i) => i + 10);
 const ALL_18 = Array.from({ length: 18 }, (_, i) => i + 1);
 
-export function computeMatchState(holes: DuoHoleNets[]): MatchState {
+export function computeMatchState(holes: DuoHoleScore[]): MatchState {
   const front9 = computeSegment(holes, FRONT_9);
   const back9 = computeSegment(holes, BACK_9);
   const overall18 = computeSegment(holes, ALL_18);

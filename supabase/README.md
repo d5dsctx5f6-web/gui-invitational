@@ -5,25 +5,44 @@ wired up — see Brief 1/2 session addendums). Every table has RLS enabled with 
 anon-SELECT policy. As of Brief 6, the service role key is used server-side by the admin
 panel (never exposed to the client) for corrections and setup writes.
 
-## Table → PRODUCT_SPEC mapping
+## Table → PRODUCT_SPEC_V2 mapping
 
-| Table | Migration | PRODUCT_SPEC §2 area |
+As of Brief 31 (v1.0 → v2.0 schema migration, `0025`). Retired v1.0 tables/columns —
+`duo_submissions`, `skins_entries`, the old `matches` table, `rounds.format`,
+`rounds.skins_buy_in` — are listed further down, not in this table; see "Retired in Brief 31"
+below for why each one has no v2.0 successor.
+
+| Table | Migration | PRODUCT_SPEC_V2 §2 area |
 |---|---|---|
-| `seasons` | `0002` | §3 champions wall — annual franchise, every table below hangs off a season |
+| `seasons` | `0002`, coin-flip/chip-off columns in `0025` | §3 champions wall — annual franchise, every table below hangs off a season. `coin_flip_winner_team_id`/`coin_flip_choice` are the one raw fact Friday's Pairings Night order derives from (store-raw-derive-everything, applied to the coin flip itself); `chip_off_winner_team_id` is a real-world event to record, not derived |
 | `players` | `0001` | Players, captains, draft — the locked 16-man roster |
-| `courses` / `course_tees` | `0003` | Handicaps — course rating/slope/par/stroke-index, per-player mixed tees |
-| `rounds` | `0004` | Rounds & formats — the two competitive rounds only (Friday fun round is `schedule_items`, engine never touches it) |
-| `teams` / `team_members` | `0005` | Players, captains, draft — the four teams entered in admin after offline draft night |
-| `matches` | `0006` | Rounds & formats — one duo-vs-duo match per team pairing per round |
-| `duo_submissions` | `0006` | Duo submissions — captain's blind Duo A / Duo B picks, revealed simultaneously |
-| `hole_scores` | `0007` | Do-overs, reverse mulligan two-score rule — the raw event table; `strokes` for skins/individual, `coalesce(match_strokes, strokes)` for match play |
-| `reverse_mulligans` | `0008` (stub), writes in `0018` | Reverse mulligan (team weapon) — one row per call, `team_id` is the calling team |
-| `skins_entries` | `0008` (stub), writes in `0018` | Money — gross skins, opt-in — a player's own toggle |
-| `challenge_bets` | `0008` (stub), writes in `0018` | Money — Challenge Ledger — proposer/acceptor scoped writes |
-| `schedule_items` | `0008` (stub), read screen in Brief 8 | Beyond scoring — schedule/itinerary, including the Friday fun round |
+| `courses` / `course_tees` | `0003` | Handicaps — course rating/slope/par/stroke-index. Display-only now (course handicap conversion feeds captain intel on the Pairings Night board, never scoring — no strokes given anywhere in v2.0) |
+| `rounds` | `0004`, `format` dropped in `0025` | Rounds & formats — the two competitive rounds only (Friday fun round is `schedule_items`, engine never touches it). One format now, both days — day identity comes from `rounds.date` directly, no companion column needed |
+| `teams` / `team_members` | `0005`, fixed-name constraint in `0025` | Players, captains, draft — exactly **North Hedges** and **South Hedges** per season now (structural `check`/`unique`, not four admin-named teams). Eight players per team, still no CHECK forcing exactly 8 (count-agnostic, per the open question in Brief 31 about a short-handed team) |
+| `duos` | `0025` | Pairings Night — round-scoped (not season-scoped; duos aren't fixed across the weekend), replaces the old `matches` table and `duo_submissions` together. Two rows sharing `round_id` + `match_slot` *are* a match — no separate table stores that pairing a second time |
+| `hole_scores` | `0007`, duo-scoped shape in `0025` | Mercy rule, Drives Used — the raw event table, now one row per duo per hole (a scramble has one score per duo). `strokes` is raw and uncapped; the double-bogey cap is engine-applied at computation time, never stored. `tee_shot_used_player_id` is the Drives Used tap |
+| `reverse_mulligans` | `0008` (stub), writes in `0018`, duo-scoped shape in `0025` | Reverse mulligan (the duo's weapon) — one row per call, `duo_id` is the calling duo, one per duo per round. Whatever the duo makes on the replay is the score — no divergent-score capture, unlike v1.0's `victim_player_id`/`original_holed_score` |
+| `challenge_bets` | `0008` (stub), writes in `0018` | Money — the sole money mechanism now (skins retired) — proposer/acceptor scoped writes |
+| `schedule_items` | `0008` (stub), read screen in Brief 8 | Beyond scoring — schedule/itinerary, including the Friday fun round and both Pairings Nights |
 | `player_auth` / `player_devices` | `0013` | Player access (the PIN model) — no accounts, no email; rides on Supabase Auth anonymous sign-in so RLS can be genuinely identity-aware. `pin_hash` is never selectable directly, only via the `set_player_pin`/`verify_and_link_pin` SECURITY DEFINER functions |
-| `rounds.skins_buy_in` | `0019` | Money — nullable per-round buy-in; null means the Money screen shows skin counts, not dollars, per SPEC §6's "never hard-block on a pending input" |
-| `seasons.cup_winner_team_id` / `.individual_champion_player_id` / `.skins_king_player_id` | `0020` | §3 champions wall — each trophy independently nullable ("— in play —" until admin records a winner), admin-recorded at trip's end rather than derived live |
+
+### v1.0 trophy columns not yet reconciled to v2.0
+
+`seasons.individual_champion_player_id` and `.skins_king_player_id` (added `0020`) are tied to
+the v1.0 individual net race and skins — both retired. Brief 31 didn't touch them (champions
+wall/trophies is a different screen's domain, out of this migration's scope) — flagged here as
+a carried-forward item for whichever brief rebuilds the champions wall. `cup_winner_team_id`
+survives unchanged; the Cup itself is unchanged in v2.0.
+
+### Retired in Brief 31 (`0025`) — no v2.0 successor
+
+| Table/column | Why |
+|---|---|
+| `duo_submissions` | The blind-simultaneous-reveal model it powered is gone — Pairings Night is a live, sequential, open declare-and-counter draft now. Superseded by `duos`. |
+| `skins_entries` | Skins is retired — the Challenge Ledger is the sole money mechanism in v2.0. |
+| `rounds.skins_buy_in` | Fed `skinsPayouts()` for a table that no longer exists. |
+| `matches` (old shape) | `team_a_id`/`team_b_id`/`slot` — superseded by `duos`, which stores the pairing exactly once. |
+| `rounds.format` | One format now (2-man scramble, gross, both days) — no enum needed. This also retired the Brief 17 trick where `format` doubled as day identity (shamble=Saturday, four_ball=Sunday); `rounds.date` now serves that purpose directly. |
 
 ## Writes since Brief 6
 
@@ -71,10 +90,18 @@ intentionally loose Brief 6 scoping):
 - `challenge_bets` insert — the proposer, naming themselves. Update — either named party
   (proposer or acceptor) only. Void/reassign is admin-only, through the service-role client.
 
+**Brief 31 note:** `duo_submissions` and `skins_entries` (and their write policies above) no
+longer exist as of `0025` — this section stays as accurate history of what Brief 7 built, not a
+description of the current schema. `reverse_mulligans`' write policy was written for its old
+`team_id`-scoped shape and needs a real captain-facing redesign against the new `duo_id` shape —
+that's Brief 32's job, not reconciled here. `duos` itself ships with interim
+admin/service-role-only writes (see `0025`), no RLS insert/update policy yet.
+
 ## Count-agnostic schema notes
 
-- `team_members` has no CHECK forcing exactly 4 rows per team — a team can be short a player.
-- `duo_submissions.duo_a_player_2` / `duo_b_player_2` are nullable — a duo can be down to one
-  available player.
-- Nothing in the schema requires a `hole_scores` row to exist for every player/round/hole —
+- `team_members` has no CHECK forcing exactly 8 rows per team (was 4 pre-Brief-31) — a team can
+  be short a player.
+- `duos.player_2_id` is nullable (as of `0025`, replacing `duo_submissions`' equivalent
+  nullable columns) — a duo can be down to one available player.
+- Nothing in the schema requires a `hole_scores` row to exist for every duo/round/hole —
   absence is just the absence of a row.

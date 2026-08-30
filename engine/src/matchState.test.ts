@@ -3,18 +3,20 @@ import {
   computeMatchState,
   countHolesWon,
   resolveHoleResults,
-  type DuoHoleNets,
+  type DuoHoleScore,
   type HoleWinner,
 } from "./matchState";
 
-/** Single-ball-per-duo shorthand: encodes a hole result as two net scores, 3 beats 4. */
-function hole(holeNumber: number, result: HoleWinner): DuoHoleNets {
-  if (result === "A") return { hole: holeNumber, duoANet: [3], duoBNet: [4] };
-  if (result === "B") return { hole: holeNumber, duoANet: [4], duoBNet: [3] };
-  return { hole: holeNumber, duoANet: [4], duoBNet: [4] };
+const PAR = 4;
+
+/** Single-score-per-duo shorthand: encodes a hole result as two raw strokes, 3 beats 4. */
+function hole(holeNumber: number, result: HoleWinner, par = PAR): DuoHoleScore {
+  if (result === "A") return { hole: holeNumber, par, duoAStrokes: par - 1, duoBStrokes: par };
+  if (result === "B") return { hole: holeNumber, par, duoAStrokes: par, duoBStrokes: par - 1 };
+  return { hole: holeNumber, par, duoAStrokes: par, duoBStrokes: par };
 }
 
-function holes(results: HoleWinner[]): DuoHoleNets[] {
+function holes(results: HoleWinner[]): DuoHoleScore[] {
   return results.map((result, i) => hole(i + 1, result));
 }
 
@@ -54,7 +56,6 @@ describe("computeMatchState", () => {
   });
 
   it("closes a segment early once it's mathematically decided (6up with 4 to play)", () => {
-    // Holes 1-8 alternate (even), holes 9-14 all go to A -> 6up thru 14, 4 left in the 18.
     const results: HoleWinner[] = [
       "A", "B", "A", "B", "A", "B", "A", "B",
       "A", "A", "A", "A", "A", "A",
@@ -71,7 +72,7 @@ describe("computeMatchState", () => {
 
   it("halves an all-square segment", () => {
     const results: HoleWinner[] = [
-      "A", "A", "A", "A", "A", "A", "A", "A", "A", // front9: irrelevant to this assertion
+      "A", "A", "A", "A", "A", "A", "A", "A", "A",
       "halved", "halved", "halved", "halved", "halved", "halved", "halved", "halved", "halved",
     ];
     const state = computeMatchState(holes(results));
@@ -85,23 +86,10 @@ describe("computeMatchState", () => {
     });
   });
 
-  it("count-agnostic: a duo down to one available ball still resolves the hole correctly", () => {
-    // Duo A has both players in (net 4 each); Duo B is down to one player (net 3) -> B wins.
-    const state = computeMatchState([{ hole: 1, duoANet: [4], duoBNet: [3, 5] }]);
-
-    expect(state.front9).toMatchObject({
-      status: "in_progress",
-      thru: 1,
-      holesUp: -1,
-      winner: null,
-    });
-  });
-
-  it("count-agnostic: a hole with no scores yet is skipped, not corrupted into a loss", () => {
-    // Hole 1 unresolved (nobody's ball is in yet), hole 2 decided.
+  it("count-agnostic: a hole not yet posted for either duo is skipped, not corrupted into a loss", () => {
     const state = computeMatchState([
-      { hole: 1, duoANet: [], duoBNet: [] },
-      { hole: 2, duoANet: [3], duoBNet: [4] },
+      { hole: 1, par: PAR, duoAStrokes: null, duoBStrokes: null },
+      { hole: 2, par: PAR, duoAStrokes: 3, duoBStrokes: 4 },
     ]);
 
     expect(state.front9.thru).toBe(1);
@@ -109,24 +97,32 @@ describe("computeMatchState", () => {
     expect(state.front9.status).toBe("in_progress");
   });
 
-  it("count-agnostic: a duo short a player for the whole round still produces valid, non-throwing results", () => {
-    // Duo A always fields two players (best net 4); Duo B is short a player all round (net 3).
-    const shortHandedHoles: DuoHoleNets[] = Array.from({ length: 18 }, (_, i) => ({
-      hole: i + 1,
-      duoANet: [4, 4],
-      duoBNet: [3],
-    }));
+  it("count-agnostic: only one side posted is also unresolved, not a default loss for the other", () => {
+    const state = computeMatchState([{ hole: 1, par: PAR, duoAStrokes: 3, duoBStrokes: null }]);
+    expect(state.front9.thru).toBe(0);
+    expect(state.front9.status).toBe("in_progress");
+  });
 
-    expect(() => computeMatchState(shortHandedHoles)).not.toThrow();
+  it("mercy cap: a duo score above par+2 is capped for match purposes, raw input untouched", () => {
+    // Par 4 hole: duo A blows up to a raw 9 (capped to 6), duo B makes a 6 -> capped, A(6) and
+    // B(6) are dead even; uncapped, A's raw 9 would lose outright. Proves both the cap applies
+    // and that computeMatchState never mutates the input array (store-raw-derive-everything).
+    // resolveHoleResults, not the whole segment, since a single hole never closes a 9-hole
+    // segment on its own (see the count-agnostic in-progress tests above).
+    const input: DuoHoleScore[] = [{ hole: 1, par: 4, duoAStrokes: 9, duoBStrokes: 6 }];
+    const snapshot = JSON.parse(JSON.stringify(input));
 
-    const state = computeMatchState(shortHandedHoles);
-    expect(state.front9.status).toBe("closed");
-    expect(state.front9.winner).toBe("B");
-    expect(state.back9.status).toBe("closed");
-    expect(state.back9.winner).toBe("B");
-    expect(state.overall18.status).toBe("closed");
-    expect(state.overall18.winner).toBe("B");
-    expect(state.totalPoints).toEqual({ a: 0, b: 3 });
+    expect(resolveHoleResults(input)).toEqual([{ hole: 1, winner: "halved" }]);
+    expect(input).toEqual(snapshot);
+    expect(input[0].duoAStrokes).toBe(9);
+  });
+
+  it("the cap has a real ceiling — it limits the damage but never turns a genuine loss into a win", () => {
+    // Par 4: A raw 7 (over the cap, capped to 6) vs B raw 5 (under the cap, untouched). B's
+    // real 5 still beats A's capped 6 -- the cap softens how bad A's exposure is, it doesn't
+    // erase a hole B legitimately won outright.
+    const result = resolveHoleResults([{ hole: 1, par: 4, duoAStrokes: 7, duoBStrokes: 5 }]);
+    expect(result).toEqual([{ hole: 1, winner: "B" }]);
   });
 });
 
@@ -142,22 +138,16 @@ describe("resolveHoleResults", () => {
   });
 
   it("a hole with no scores yet resolves to a null winner, not a crash", () => {
-    expect(resolveHoleResults([{ hole: 1, duoANet: [], duoBNet: [] }])).toEqual([
-      { hole: 1, winner: null },
-    ]);
-  });
-
-  it("count-agnostic, same as the internal resolution: one duo down to a single ball still resolves", () => {
-    expect(resolveHoleResults([{ hole: 1, duoANet: [4], duoBNet: [3, 5] }])).toEqual([
-      { hole: 1, winner: "B" },
-    ]);
+    expect(
+      resolveHoleResults([{ hole: 1, par: PAR, duoAStrokes: null, duoBStrokes: null }]),
+    ).toEqual([{ hole: 1, winner: null }]);
   });
 
   it("returns results in hole order regardless of input order", () => {
-    const outOfOrder: DuoHoleNets[] = [
-      { hole: 3, duoANet: [3], duoBNet: [4] },
-      { hole: 1, duoANet: [4], duoBNet: [3] },
-      { hole: 2, duoANet: [4], duoBNet: [4] },
+    const outOfOrder: DuoHoleScore[] = [
+      { hole: 3, par: PAR, duoAStrokes: 3, duoBStrokes: 4 },
+      { hole: 1, par: PAR, duoAStrokes: 4, duoBStrokes: 3 },
+      { hole: 2, par: PAR, duoAStrokes: 4, duoBStrokes: 4 },
     ];
     expect(resolveHoleResults(outOfOrder).map((r) => r.hole)).toEqual([1, 2, 3]);
   });
@@ -171,9 +161,8 @@ describe("countHolesWon", () => {
 
   it("returns zero for both when every hole is halved or unresolved", () => {
     expect(countHolesWon(holes(["halved", "halved"]))).toEqual({ a: 0, b: 0 });
-    expect(countHolesWon([{ hole: 1, duoANet: [], duoBNet: [] }])).toEqual({
-      a: 0,
-      b: 0,
-    });
+    expect(
+      countHolesWon([{ hole: 1, par: PAR, duoAStrokes: null, duoBStrokes: null }]),
+    ).toEqual({ a: 0, b: 0 });
   });
 });
