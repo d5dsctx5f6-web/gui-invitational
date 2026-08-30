@@ -33,11 +33,33 @@
 - Implements PRODUCT_SPEC §2 exactly, including the **two-score rule** (match score vs real score per player-hole when an RM hits a holed shot) and **non-entrant invisibility** in skins.
 - Gate for M2: a **simulated full-trip test suite** — 16 players, both rounds, every edge (RM-on-mulligan, carryover chains, opt-out low scores, shortened Sunday, allowance math) — passing before any human scores a real hole.
 
-## 5. Data model sketch (tables; refine in Brief 2)
+## 5. Data model sketch (tables; v2.0 schema as of Brief 31)
 
-`seasons` · `players` (name, ghin_or_trip_index) · `teams` / `team_members` · `rounds` (date, format, course_id, tee) · `courses` (rating, slope, par, stroke_index[18] per tee) · `matches` (round, team_a/b, slot A/B) · `duo_submissions` (captain, round, duos, committed_at) · `hole_scores` (player, round, hole, strokes, do_over_flags) · `reverse_mulligans` (team, round, hole, victim, original_holed_score) · `skins_entries` (player, round) · `challenge_bets` (proposer, acceptor, terms, stake, status, winner) · `schedule_items`.
+`seasons` (year, name, cup_winner_team_id, coin_flip_winner_team_id, coin_flip_choice,
+chip_off_winner_team_id — the coin flip is stored as one raw fact, Friday's declare/counter
+order and Sunday's reversal are both derived from it, never independently stored) · `players`
+(name, ghin_or_trip_index) · `teams` (season, name — fixed to **North Hedges**/**South
+Hedges**, structural not admin-editable text, captain) / `team_members` (team, player —
+count-agnostic, no forced-8 CHECK) · `rounds` (date, course_id, tee — no `format` column
+anymore; one format now, day identity is `date` itself) · `courses` (rating, slope, par,
+stroke_index[18] per tee — display-only, feeds course handicap as captain intel, never
+scoring) · `duos` (round, team, player_1, player_2, match_slot 1-4, is_forced,
+declared_by_captain_id — round-scoped, not season-scoped, since duos aren't fixed across the
+weekend; no separate `matches` table, a match is two duos sharing a round + slot) ·
+`hole_scores` (duo, round, hole, strokes — raw and uncapped, the double-bogey mercy cap is
+engine-applied at computation time and never stored; tee_shot_used_player_id — the Drives Used
+tap) · `reverse_mulligans` (duo, round, hole, called_at — one score in, one score out, no
+divergent-score capture) · `challenge_bets` (proposer, acceptor, terms, stake, status, winner)
+· `schedule_items`.
 
-Realtime: clients subscribe to the event tables; every mutation pushes to all phones (~1s).
+**Retired in Brief 31, v1.0 → v2.0** (see `supabase/README.md` for the full why-per-table):
+`duo_submissions` (blind-reveal draft, superseded by the live declare-and-counter `duos`
+model), `skins_entries` (skins retired — Challenge Ledger is the sole money mechanism now),
+the old `matches` table (`team_a_id`/`team_b_id`/`slot` shape, superseded by `duos`),
+`rounds.format` (one format now), `rounds.skins_buy_in` (fed a now-gone skins payout).
+
+Realtime: clients subscribe to the event tables (now including `duos`, for the live Pairings
+Night board); every mutation pushes to all phones (~1s).
 
 ## 6. Repo & environment
 
