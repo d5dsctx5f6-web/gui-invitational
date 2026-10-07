@@ -25,3 +25,4 @@ export * from "./formatLock";
 export * from "./qaSafety";
 export * from "./seasonScope";
 export * from "./fixtures/qaFixtures";
+export * from "./holeView";

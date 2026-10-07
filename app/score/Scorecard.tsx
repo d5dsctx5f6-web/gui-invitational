@@ -12,12 +12,15 @@ import {
   drivesUsedTally,
   formatPoints,
   groupTeeTimeIso,
+  holeBanner,
+  holeTile,
   liveNote,
   nextUnpostedHole,
   postedHoles,
   resolveHoleResults,
   reverseMulliganStatus,
   segmentLabel,
+  viewerSide,
   type BestBallRow,
   type ScrambleRow,
 } from "@/engine/src";
@@ -89,7 +92,7 @@ export function Scorecard({ data }: { data: ScoreData }) {
   const posted = useMemo(() => postedHoles(holes), [holes]);
   const note = liveNote(matchState);
 
-  const mySide: "A" | "B" = duoA.player1.id === me.id || duoA.player2?.id === me.id ? "A" : "B";
+  const mySide = viewerSide([duoA.player1.id, duoA.player2?.id ?? null], me.id);
   const canScore = canScoreDuo(
     me.id,
     duoA.id,
@@ -296,20 +299,11 @@ export function Scorecard({ data }: { data: ScoreData }) {
     round.firstTeeTime ? formatArizonaTime(groupTeeTimeIso(round.firstTeeTime, round.intervalMinutes, duo.matchSlot)) : null;
 
   const holeResult = results[hole - 1]?.winner ?? null;
-  const banner =
-    isPosted && holeResult
-      ? holeResult === "halved"
-        ? { text: `Hole ${hole} halved`, tone: "halved" }
-        : holeResult === "A"
-          ? { text: `North won hole ${hole}`, tone: "north" }
-          : { text: `South won hole ${hole}`, tone: "south" }
-      : null;
+  const banner = isPosted ? holeBanner(holeResult, hole) : null;
 
   const tiles = results.map((r) => {
-    if (r.winner === null) return { hole: r.hole, label: "·", tone: "none" };
-    if (r.winner === "halved") return { hole: r.hole, label: "H", tone: "halved" };
-    const mine = r.winner === mySide;
-    return { hole: r.hole, label: mine ? "W" : "L", tone: mine ? "win" : "loss" };
+    const t = holeTile(r.winner, mySide);
+    return { hole: r.hole, label: t.label, tone: t.tone };
   });
 
   const driveTally = isScramble

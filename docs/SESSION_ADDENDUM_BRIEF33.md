@@ -39,3 +39,7 @@
 - Deploy and run the production two-device gate; then the cleanup SQL.
 - `/schedule` tee-time cards → Brief 34; `/champions` Low Man / Skins King → Brief 36; the "delete-locked" message is now verified live (QA).
 - `supabase/.temp/` (CLI scratch) is untracked; `next.config.ts` `allowedDevOrigins` is local-only and uncommitted.
+
+## Follow-up: perspective regression tests (Oct 6, 2026)
+Chris reported a suspected scoring inversion on production QA. Diagnosis (QA data only, same commit, live DB): **no bug** — in both formats, from both a North and a South seat, the lower score won, the banner named the right team, the header read "N 1 UP", and the strip tile was W for North / L for South. Every layer was checked (engine, adapter, A=North assignment in `score/page.tsx`, UI mapping). The one gap was that the banner / W-L tile / viewer-side mapping lived inline in the scorecard component with no test. That mapping is now pure functions in `engine/src/holeView.ts` (`viewerSide`, `holeBanner`, `holeTile`), used by the scorecard, with `holeView.test.ts` (14 tests: both formats, both seats, a hole South wins, a mercy-cap halve in each format, a picked-up partner, the N/S header). Mutation-checked: flipping tile W/L, the banner team names, the viewer side, or the engine's comparison each turns the suite red. 114 -> 128 tests.
+
