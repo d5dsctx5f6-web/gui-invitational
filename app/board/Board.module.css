@@ -1,0 +1,303 @@
+/* The TV board: landscape, sized in vh/vw so it fits 1080p with no scrolling and reads across a room. */
+.board {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  padding: 2.2vh 2.5vw;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 2vh;
+  background: var(--bg);
+  color: var(--tx);
+}
+
+.top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 2vw;
+}
+
+.cup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6vh;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3vw;
+}
+
+.team {
+  display: flex;
+  flex-direction: column;
+}
+
+.teamRight {
+  align-items: flex-end;
+}
+
+.teamName {
+  font-size: 2.6vh;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.north {
+  color: var(--n-ink);
+}
+
+.south {
+  color: var(--s-ink);
+}
+
+.points {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17vh;
+  line-height: 0.9;
+}
+
+.dash {
+  font-family: var(--font-display);
+  font-size: 9vh;
+  color: var(--tx3);
+  padding-bottom: 1vh;
+}
+
+.line {
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 3.4vh;
+  text-transform: uppercase;
+  color: var(--tx2);
+}
+
+.line_north {
+  color: var(--n-ink);
+}
+
+.line_south {
+  color: var(--s-ink);
+}
+
+.line_alert {
+  color: var(--live-ink);
+}
+
+.projection {
+  text-align: center;
+  font-size: 2.6vh;
+  color: var(--tx2);
+}
+
+.projection b {
+  font-family: var(--font-display);
+  font-size: 3.4vh;
+  color: var(--tx);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1vh;
+  font-size: 1.8vh;
+  color: var(--tx3);
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 2.6vh;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tx2);
+}
+
+.qa {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--live-ink);
+  background: var(--live-soft);
+  border: 1px solid var(--live);
+  border-radius: 999px;
+  padding: 0.4vh 1.2vw;
+}
+
+.rounds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5vw;
+  min-height: 0;
+}
+
+.round {
+  display: flex;
+  flex-direction: column;
+  gap: 1vh;
+  min-height: 0;
+}
+
+.roundTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 3.4vh;
+  text-transform: uppercase;
+}
+
+.roundMeta {
+  font-size: 2.1vh;
+  color: var(--tx2);
+}
+
+.matches {
+  display: grid;
+  grid-auto-rows: 1fr;
+  gap: 1vh;
+  flex: 1;
+  min-height: 0;
+}
+
+.match {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1vw;
+  background: var(--surf);
+  border: 1px solid var(--bd);
+  border-radius: 1vh;
+  padding: 0.8vh 1.2vw;
+  min-height: 0;
+}
+
+.duos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2vh;
+  min-width: 0;
+}
+
+.duo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.6vh;
+  line-height: 1.05;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5vh;
+}
+
+.status {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 3vh;
+  white-space: nowrap;
+}
+
+.status_live {
+  color: var(--live-ink);
+}
+
+.status_not_started {
+  color: var(--tx3);
+}
+
+.chips {
+  display: flex;
+  gap: 0.5vw;
+}
+
+.chip {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3vw;
+  padding: 0.2vh 0.7vw;
+  border-radius: 0.6vh;
+  background: var(--surf2);
+  border: 1px solid var(--bd);
+  font-size: 2.4vh;
+}
+
+.chipLabel {
+  font-size: 1.6vh;
+  color: var(--tx3);
+  font-weight: 700;
+}
+
+.chipText {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.tone_north {
+  background: var(--n-soft);
+  border-color: var(--n);
+}
+
+.tone_north .chipText {
+  color: var(--n-ink);
+}
+
+.tone_south {
+  background: var(--s-soft);
+  border-color: var(--s);
+}
+
+.tone_south .chipText {
+  color: var(--s-ink);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 2.4vh;
+  color: var(--tx2);
+  border: 1px dashed var(--bd2);
+  border-radius: 1vh;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2vw;
+  font-size: 1.8vh;
+  color: var(--tx3);
+}
+
+.banner {
+  font-weight: 700;
+  color: var(--live-ink);
+  background: var(--live-soft);
+  border: 1px solid var(--live);
+  border-radius: 0.8vh;
+  padding: 0.6vh 1.2vw;
+  font-size: 2.2vh;
+}
+
+.stale {
+  color: var(--loss);
+  font-weight: 800;
+}
+
+.live {
+  color: var(--win);
+  font-weight: 800;
+}

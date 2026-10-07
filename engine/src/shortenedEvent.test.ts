@@ -1,50 +1,46 @@
 import { describe, expect, it } from "vitest";
-import {
-  isRoundComplete,
-  officialRounds,
-  type HoleScorePresence,
-  type RoundParticipant,
-} from "./shortenedEvent";
+import { isMatchDecided, isRoundComplete, officialRounds } from "./shortenedEvent";
+import { computeMatchState, type DuoHoleScore } from "./matchState";
 
-function allHolesFor(playerId: string, roundId: string): HoleScorePresence[] {
-  return Array.from({ length: 18 }, (_, i) => ({
-    roundId,
-    playerId,
-    hole: i + 1,
-  }));
+const PAR = Array(18).fill(4);
+/** A match from a hole-result script: A / B = that side wins the hole, H = halved; shorter = in progress. */
+function matchFrom(script: string): ReturnType<typeof computeMatchState> {
+  const holes: DuoHoleScore[] = PAR.map((par, i) => {
+    const c = script[i];
+    if (!c) return { hole: i + 1, par, duoAStrokes: null, duoBStrokes: null };
+    return {
+      hole: i + 1,
+      par,
+      duoAStrokes: c === "B" ? par + 1 : par,
+      duoBStrokes: c === "A" ? par + 1 : par,
+    };
+  });
+  return computeMatchState(holes);
 }
 
-describe("isRoundComplete", () => {
-  it("is true when every participant has all 18 holes", () => {
-    const participants: RoundParticipant[] = [
-      { roundId: "R1", playerId: "A" },
-      { roundId: "R1", playerId: "B" },
-    ];
-    const scores = [...allHolesFor("A", "R1"), ...allHolesFor("B", "R1")];
-    expect(isRoundComplete(participants, scores, "R1")).toBe(true);
+describe("isMatchDecided / isRoundComplete (v2: segments decided, early close counts)", () => {
+  it("a full 18 holes is decided", () => {
+    expect(isMatchDecided(matchFrom("H".repeat(18)))).toBe(true);
   });
 
-  it("is false when one participant is missing even a single hole", () => {
-    const participants: RoundParticipant[] = [
-      { roundId: "R1", playerId: "A" },
-      { roundId: "R1", playerId: "B" },
-    ];
-    const scores = [
-      ...allHolesFor("A", "R1"),
-      ...allHolesFor("B", "R1").slice(0, 17), // B missing hole 18
-    ];
-    expect(isRoundComplete(participants, scores, "R1")).toBe(false);
+  it("a match settled early is decided without 18 holes posted", () => {
+    // A wins holes 1-5 (front closed), 6-9 halved, A wins 10-14 (back closed), overall closes too.
+    const m = matchFrom("AAAAAHHHH" + "AAAAAHHHH");
+    expect(isMatchDecided(m)).toBe(true);
   });
 
-  it("a player absent the whole round never blocks completeness", () => {
-    // Only A is a participant this round; B (elsewhere) posting nothing is irrelevant.
-    const participants: RoundParticipant[] = [{ roundId: "R1", playerId: "A" }];
-    const scores = allHolesFor("A", "R1");
-    expect(isRoundComplete(participants, scores, "R1")).toBe(true);
+  it("an in-progress match is not decided", () => {
+    expect(isMatchDecided(matchFrom("AAAAAAA"))).toBe(false);
+    expect(isMatchDecided(matchFrom(""))).toBe(false);
   });
 
-  it("is false for a round with no participants at all", () => {
-    expect(isRoundComplete([], [], "R1")).toBe(false);
+  it("a round is complete only when it has matches and every one is decided", () => {
+    const done = matchFrom("A".repeat(18));
+    const live = matchFrom("AAA");
+    expect(isRoundComplete([done, done, done, done])).toBe(true);
+    expect(isRoundComplete([done, done, done])).toBe(true); // short-handed: three decided matches
+    expect(isRoundComplete([done, done, live, done])).toBe(false);
+    expect(isRoundComplete([])).toBe(false); // no pairings yet
   });
 });
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadScenario, seedFullTrip } from "@/lib/qaTrip";
 import { createClient } from "@/lib/supabase/server";
 import {
   assertQaSeason,
@@ -49,6 +50,8 @@ async function loadQaMatch(admin: Admin, seasonId: string) {
     .select("id, team_id, player_1_id, player_2_id")
     .eq("round_id", round.id);
   const { data: teams } = await admin.from("teams").select("id, name").eq("season_id", seasonId);
+  // Single-match mode only: the full-trip modes have 16 duos, where "the" match is ambiguous.
+  if ((duos ?? []).length !== 2) return null;
   const north = (duos ?? []).find((d) => teams?.find((t) => t.id === d.team_id)?.name === "North Hedges");
   const south = (duos ?? []).find((d) => teams?.find((t) => t.id === d.team_id)?.name === "South Hedges");
   if (!north || !south) return null;
@@ -158,7 +161,7 @@ export async function autofillFromFixture() {
   try {
     const season = await loadQaSeason(admin);
     const match = await loadQaMatch(admin, season.id);
-    if (!match) throw new Error("Seed / reset the QA sandbox first.");
+    if (!match) throw new Error("Autofill is for the single-match sandbox — use Seed / reset (single match) first. (Scenarios load their own scores.)");
     const { round, north, south } = match;
 
     let holesPosted = 0;
@@ -218,5 +221,42 @@ export async function autofillFromFixture() {
 
   revalidatePath("/admin");
   revalidatePath("/score");
+  flash(message);
+}
+
+/** Seeds the full trip (16 QA players, two rounds, four matches each) with no scores. */
+export async function seedFullTripAction(formData: FormData) {
+  await requireAdmin();
+  const round2Format = String(formData.get("round2Format")) === "best_ball" ? "best_ball" : "scramble";
+  let failure: string | null = null;
+  try {
+    await seedFullTrip(createAdminClient(), round2Format);
+  } catch (err) {
+    failure = err instanceof Error ? err.message : String(err);
+  }
+  if (failure) flashError(failure);
+  revalidatePath("/admin");
+  revalidatePath("/leaderboard");
+  revalidatePath("/board");
+  flash(`QA full trip seeded — Round 2 is ${round2Format === "best_ball" ? "best ball" : "scramble"}`);
+}
+
+/** Loads scenario 1-6 (seeds the full trip, then writes that scenario's scores). */
+export async function loadScenarioAction(formData: FormData) {
+  await requireAdmin();
+  const scenarioId = Number(formData.get("scenario"));
+  const round2Format = String(formData.get("round2Format")) === "best_ball" ? "best_ball" : "scramble";
+  let message = "";
+  let failure: string | null = null;
+  try {
+    const r = await loadScenario(createAdminClient(), scenarioId, round2Format);
+    message = `Loaded scenario ${scenarioId}: ${r.scenario} (${r.scoreRows} score rows, Round 2 ${round2Format === "best_ball" ? "best ball" : "scramble"})`;
+  } catch (err) {
+    failure = err instanceof Error ? err.message : String(err);
+  }
+  if (failure) flashError(failure);
+  revalidatePath("/admin");
+  revalidatePath("/leaderboard");
+  revalidatePath("/board");
   flash(message);
 }

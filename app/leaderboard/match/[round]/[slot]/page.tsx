@@ -1,19 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { loadCupData } from "@/lib/cupData";
 import { resolveScope } from "@/lib/qaScope";
-import { CupView } from "./CupView";
+import { MatchDetail } from "../../../MatchDetail";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeaderboardPage({
+export default async function MatchDetailPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ round: string; slot: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const params = await searchParams;
-  // QA data only on request AND only for the commissioner / a QA-signed-in device; otherwise real.
-  const scope = await resolveScope(params.scope);
+  const { round, slot } = await params;
+  const query = await searchParams;
+  const scope = await resolveScope(query.scope);
   const supabase = await createClient();
   const initial = await loadCupData(supabase, scope);
-  return <CupView initial={initial} />;
+  return <MatchDetail initial={initial} roundId={round} slot={Number(slot)} />;
 }

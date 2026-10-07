@@ -2,6 +2,21 @@ import { describe, expect, it } from "vitest";
 import { rankTeams, type TeamMatchOutcome } from "./standings";
 
 describe("rankTeams", () => {
+  it("points beat holes won: the points leader ranks first even with far fewer holes", () => {
+    const outcomes: TeamMatchOutcome[] = [
+      { teamAId: "North", teamBId: "South", points: { a: 2, b: 1 }, holesWon: { a: 4, b: 14 } },
+      { teamAId: "North", teamBId: "South", points: { a: 2, b: 1 }, holesWon: { a: 5, b: 12 } },
+    ];
+    const ranking = rankTeams(["North", "South"], outcomes);
+    expect(ranking.buckets[0]).toEqual({ rank: 1, teamIds: ["North"], chipOffRequired: false });
+    expect(ranking.totals).toEqual(
+      expect.arrayContaining([
+        { teamId: "North", points: 4, holesWon: 9 },
+        { teamId: "South", points: 2, holesWon: 26 },
+      ]),
+    );
+  });
+
   it("orders North and South cleanly by points when nothing is tied", () => {
     const outcomes: TeamMatchOutcome[] = [
       { teamAId: "North", teamBId: "South", points: { a: 3, b: 0 }, holesWon: { a: 8, b: 1 } },

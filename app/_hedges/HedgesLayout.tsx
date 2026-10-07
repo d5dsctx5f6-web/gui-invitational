@@ -19,12 +19,22 @@ const barlowCondensed = Barlow_Condensed({
   weight: ["500", "600", "700"],
 });
 
-export default function HedgesLayout({ children }: { children: React.ReactNode }) {
+export function HedgesShell({
+  children,
+  defaultTheme = "system",
+}: {
+  children: React.ReactNode;
+  defaultTheme?: "light" | "dark" | "system";
+}) {
   return (
-    <div className={`${inter.variable} ${barlowCondensed.variable}`}>
-      <ThemeProvider>
+    <div className={`${inter.variable} ${barlowCondensed.variable} ${styles.root}`}>
+      <ThemeProvider defaultPreference={defaultTheme}>
         <div className={styles.shell}>{children}</div>
       </ThemeProvider>
     </div>
   );
+}
+
+export default function HedgesLayout({ children }: { children: React.ReactNode }) {
+  return <HedgesShell>{children}</HedgesShell>;
 }

@@ -387,6 +387,12 @@ export function Scorecard({ data }: { data: ScoreData }) {
         </div>
       </Card>
 
+      {matchState.overall18.status === "closed" && posted.length < 18 && (
+        <div className={styles.notice}>
+          The 18 is decided — but play all 18 and post every hole. Total holes won is the Cup tiebreaker.
+        </div>
+      )}
+
       {/* ---------------- hole header + nav ---------------- */}
       <div className={styles.holeHead}>
         <button type="button" className={styles.navBtn} onClick={() => goToHole(hole - 1)} disabled={hole <= 1} aria-label="Previous hole">

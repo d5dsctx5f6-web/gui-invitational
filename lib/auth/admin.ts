@@ -52,13 +52,17 @@ export async function setAdminSession() {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: SESSION_TTL_MS / 1000,
-    path: "/admin",
+    // Site-wide (Brief 34) so the commissioner can open /leaderboard?scope=qa and /board?scope=qa on
+    // the same device. Still httpOnly, Secure in production and SameSite=Lax, and still only ever read
+    // by isAdminAuthed() below — nothing else looks at it.
+    path: "/",
   });
 }
 
 export async function clearAdminSession() {
   const store = await cookies();
   store.delete(ADMIN_COOKIE_NAME);
+  store.delete({ name: ADMIN_COOKIE_NAME, path: "/admin" }); // sessions issued before the path change
 }
 
 export async function isAdminAuthed(): Promise<boolean> {

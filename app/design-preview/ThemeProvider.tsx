@@ -28,12 +28,6 @@ function subscribeToExternalChanges(callback: () => void) {
   };
 }
 
-function getPreferenceSnapshot(): ThemePreference {
-  return (localStorage.getItem(STORAGE_KEY) as ThemePreference | null) ?? "system";
-}
-function getServerPreferenceSnapshot(): ThemePreference {
-  return "system";
-}
 function getSystemPrefersDarkSnapshot(): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
@@ -41,12 +35,20 @@ function getServerSystemPrefersDarkSnapshot(): boolean {
   return false;
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const preference = useSyncExternalStore(
-    subscribeToExternalChanges,
-    getPreferenceSnapshot,
-    getServerPreferenceSnapshot,
+export function ThemeProvider({
+  children,
+  defaultPreference = "system",
+}: {
+  children: ReactNode;
+  /** What to use until the user picks one (the TV board defaults to dark). */
+  defaultPreference?: ThemePreference;
+}) {
+  const getPreference = useCallback(
+    (): ThemePreference => (localStorage.getItem(STORAGE_KEY) as ThemePreference | null) ?? defaultPreference,
+    [defaultPreference],
   );
+  const getServerPreference = useCallback((): ThemePreference => defaultPreference, [defaultPreference]);
+  const preference = useSyncExternalStore(subscribeToExternalChanges, getPreference, getServerPreference);
   const systemPrefersDark = useSyncExternalStore(
     subscribeToExternalChanges,
     getSystemPrefersDarkSnapshot,
@@ -64,7 +66,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ preference, resolvedTheme, setPreference }}>
-      <div data-theme={resolvedTheme}>{children}</div>
+      <div data-theme={resolvedTheme} style={{ width: "100%" }}>
+        {children}
+      </div>
     </ThemeContext.Provider>
   );
 }

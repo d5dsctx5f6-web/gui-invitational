@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/season";
+import { loadCupData } from "@/lib/cupData";
+import { groupTeeTimeIso } from "@/engine/src";
+import { formatLabel, namesOf } from "../leaderboard/cupModel";
 import { formatArizonaDate, formatArizonaTime } from "@/lib/timezone";
 import pageStyles from "../page.module.css";
 import styles from "./schedule.module.css";
@@ -13,32 +16,6 @@ interface ScheduleItem {
   starts_at: string | null;
   notes: string | null;
 }
-interface RoundRow {
-  id: string;
-  date: string;
-  format: string;
-  course_id: string;
-}
-interface MatchRow {
-  round_id: string;
-  team_a_id: string;
-  team_b_id: string;
-  slot: string;
-  tee_time: string | null;
-}
-interface TeamRow {
-  id: string;
-  name: string;
-}
-interface CourseRow {
-  id: string;
-  name: string;
-}
-
-function formatName(format: string): string {
-  return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
-}
-
 // Brief 26: both always Arizona time, regardless of the viewing device's own timezone — every
 // event on this page happens on the trip, in Phoenix.
 function dayLabel(startsAt: string): string {
@@ -76,23 +53,9 @@ export default async function SchedulePage() {
     days.get(label)!.push(item);
   }
 
-  // Brief 17 Part C: tee times per round, as their own clearly-labeled section rather than
-  // merged into the day cards above — schedule_items and rounds/matches are different data
-  // shapes (a timestamp vs. a plain date), and matching them into one combined timeline risked
-  // a fragile date-label join for no real benefit over a separate, equally visible section.
-  const [{ data: rounds }, { data: matches }, { data: teams }, { data: courses }] =
-    await Promise.all([
-      supabase.from("rounds").select("id, date, format, course_id").eq("season_id", season?.id ?? "").order("date"),
-      supabase.from("matches").select("round_id, team_a_id, team_b_id, slot, tee_time"),
-      supabase.from("teams").select("id, name"),
-      supabase.from("courses").select("id, name"),
-    ]);
-  const roundsList = (rounds ?? []) as RoundRow[];
-  const matchesList = (matches ?? []) as MatchRow[];
-  const teamsList = (teams ?? []) as TeamRow[];
-  const coursesList = (courses ?? []) as CourseRow[];
-  const teamName = (id: string) => teamsList.find((t) => t.id === id)?.name ?? "?";
-  const courseName = (id: string) => coursesList.find((c) => c.id === id)?.name ?? "Unknown course";
+  // Brief 34 Part C: round cards come from `rounds` + `duos` (the v1 `matches` table is gone). Tee
+  // times are raw first-tee + interval, derived per group, always in Arizona time.
+  const cup = season ? await loadCupData(supabase, "real") : null;
 
   return (
     <main className={styles.page}>
@@ -141,25 +104,38 @@ export default async function SchedulePage() {
         </div>
       )}
 
-      {roundsList.map((round) => {
-        const roundMatches = matchesList
-          .filter((m) => m.round_id === round.id)
-          .sort((a, b) => (a.tee_time ?? "").localeCompare(b.tee_time ?? ""));
-        if (roundMatches.length === 0) return null;
+      {(cup?.rounds ?? []).map((round) => {
+        const date = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long", month: "short", day: "numeric" }).format(
+          new Date(`${round.date}T12:00:00Z`),
+        );
+        const groups = [1, 2, 3, 4].map((slot) => {
+          const match = round.matches.find((m) => m.slot === slot);
+          return {
+            slot,
+            time: round.firstTeeTime ? formatArizonaTime(groupTeeTimeIso(round.firstTeeTime, round.intervalMinutes, slot)) : null,
+            matchup:
+              match?.north && match?.south
+                ? `${namesOf(match.north, cup!.playerNames)} v ${namesOf(match.south, cup!.playerNames)}`
+                : null,
+          };
+        });
         return (
           <div className={styles.card} key={round.id}>
             <h3 className={styles.dayTitle}>
-              Tee times — {courseName(round.course_id)} · {formatName(round.format)}
+              Round {round.roundNumber} · {date}
             </h3>
-            {roundMatches.map((m, i) => (
-              <div className={styles.eventRow} key={`${m.round_id}-${m.slot}-${i}`}>
-                <div className={styles.eventTime}>
-                  {m.tee_time ? timeLabel(m.tee_time) : "TBD"}
-                </div>
+            <div className={styles.eventNotes}>
+              {round.courseName}
+              {round.teeName ? ` · ${round.teeName} tees` : ""} · {formatLabel(round.format)}
+            </div>
+            {round.teeTimeNote && <div className={styles.eventTitle}>{round.teeTimeNote}</div>}
+            {!round.firstTeeTime && <div className={styles.eventNotes}>Tee times not set yet.</div>}
+            {groups.map((g) => (
+              <div className={styles.eventRow} key={g.slot}>
+                <div className={styles.eventTime}>{g.time ?? "TBD"}</div>
                 <div>
-                  <div className={styles.eventTitle}>
-                    {teamName(m.team_a_id)} v {teamName(m.team_b_id)} — Slot {m.slot}
-                  </div>
+                  <div className={styles.eventTitle}>Group {g.slot}</div>
+                  <div className={styles.eventNotes}>{g.matchup ?? "Pairings not set yet"}</div>
                 </div>
               </div>
             ))}

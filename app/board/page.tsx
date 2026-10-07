@@ -1,19 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { loadCupData } from "@/lib/cupData";
 import { resolveScope } from "@/lib/qaScope";
-import { CupView } from "./CupView";
+import { BoardView } from "./BoardView";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeaderboardPage({
+// The TV board: no login, read-only, no admin links. QA data only via ?scope=qa for the commissioner
+// or a QA-signed-in device; the default view never contains QA data.
+export default async function BoardPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  // QA data only on request AND only for the commissioner / a QA-signed-in device; otherwise real.
   const scope = await resolveScope(params.scope);
   const supabase = await createClient();
   const initial = await loadCupData(supabase, scope);
-  return <CupView initial={initial} />;
+  return <BoardView initial={initial} />;
 }

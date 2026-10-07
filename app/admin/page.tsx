@@ -27,6 +27,7 @@ import {
 import Link from "next/link";
 import { ConfirmDeleteButton } from "./ConfirmDeleteButton";
 import { Corrections } from "./Corrections";
+import { CupAdmin } from "./CupAdmin";
 import { QaSandbox } from "./QaSandbox";
 import { buildDeleteWarning } from "./deleteWarnings";
 import styles from "./admin.module.css";
@@ -767,6 +768,8 @@ export default async function AdminPage({
           </div>
         ))}
       </section>
+
+      <CupAdmin />
 
       <QaSandbox />
 

@@ -62,6 +62,15 @@ Runs twice per trip: **Friday night** (sets Saturday's four matches) and **Satur
 - **One-tap bet presets:** a short menu of the trip's standing bets so logging one is a tap and a name, not typing terms from scratch. Final preset list is a ledger-brief decision, not a spec decision.
 - Nothing else. No skins, no cup pot. Running ledger per player; **one settle-up number per man** at trip's end. The app tracks money; it never moves money.
 
+### The Cup screen, the "If it ended now" projection, and the TV board
+- **`/leaderboard`** shows North v South official points, "X to win" (the smallest total above half of the points possible: 12½ of 24, 11 of 21 — **possible points always come from the matches that exist, never a constant**), a clinch/winner line ("North Hedges win the Cup"), per-round "N of M points decided", and four match cards per round with live F9/B9/18 chips. A read-only match detail shows the neutral hole strip (team-colored), each duo's counting score, where the mercy cap changed a hole, reverse mulligan calls and (scramble) Drives Used.
+- **"If it ended now"** is a labeled projection only: official points plus every in-progress segment projected at its current status (up = a win, all square = a halve). It is **display only and never mixed into the official total**.
+- **Before pairings:** until every round has duos the header says "Pairings pending" and shows no "to win" line and no clinch (the true possible total isn't known yet).
+- **Round complete** = it has matches and every match has all three segments decided (an early close counts).
+- **Shortened event** applies only when the commissioner **declares** it (`seasons.event_shortened`, with confirm and undo): the Cup is then decided on the standings after the last fully completed round, and later rounds are shown as "not counted". It is never inferred from an incomplete round.
+- **Tiebreak:** points → total holes won (every posted hole counts, so play all 18 and post every hole) → "chip-off required" (never auto-resolved; the commissioner records the winner, which can be cleared).
+- **`/board`** is the TV version of the big board: landscape, large type, no scrolling at 1080p, no login, read-only, no admin links, dark by default with a light toggle, realtime plus a 30-second refetch fallback and a visible "LIVE / NOT LIVE" clock.
+
 ### Scorekeeping
 - **Any of the four players in a match can post or edit both duos' scores for that match, and log either duo's reverse mulligan call.** Whoever has a phone out does it; the signed paper card is the backup. Enforced by the database (RLS `can_score_duo()`), not just the UI.
 - **Drives Used is prompted on every hole (scramble) but never required to post.**

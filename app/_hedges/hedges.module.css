@@ -1,4 +1,11 @@
+/* The site body is a centered flex column, which would shrink-wrap this to its content: pin it full width. */
+.root {
+  width: 100%;
+}
+
 .shell {
+  width: 100%;
+  min-width: 0;
   min-height: 100vh;
   background: var(--bg);
   color: var(--tx);

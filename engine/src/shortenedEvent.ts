@@ -1,41 +1,32 @@
-// Shortened-event resolution. PRODUCT_SPEC §2 / Rulebook §7: if Sunday can't be
-// completed, the cup and individual title are decided on the standings after the
-// last fully completed round. This module only determines *which rounds count* —
+// Shortened-event resolution. PRODUCT_SPEC §2 / Rulebook §8: if Sunday can't be
+// completed, the cup is decided on the standings after the last fully completed round (applied
+// only when the commissioner declares the event shortened — seasons.event_shortened). This
+// module only determines *which rounds count* —
 // Parts A/B/C's other functions then run over that subset; no logic is duplicated.
 
-export interface RoundParticipant {
-  roundId: string;
-  playerId: string;
-}
+import type { MatchState } from "./matchState";
 
-export interface HoleScorePresence {
-  roundId: string;
-  playerId: string;
-  hole: number;
+/**
+ * A match is decided when all three of its segments (front 9, back 9, overall 18) are decided —
+ * an early close counts, so a match that was settled on hole 16 is decided without 18 holes posted.
+ */
+export function isMatchDecided(state: MatchState): boolean {
+  return (
+    state.front9.status === "closed" &&
+    state.back9.status === "closed" &&
+    state.overall18.status === "closed"
+  );
 }
 
 /**
- * A round is complete when every participating player has a score for every hole
- * (1-18) in that round. "Participating" is caller-supplied (a player absent the whole
- * round was never a participant, so their absence can't block completeness) —
- * count-agnostic, per ARCHITECTURE's principle.
+ * A round is complete when it has at least one match and EVERY match in it is decided (Brief 34).
+ * This replaces the v1 rule ("every participating player has a score for all 18 holes"), which
+ * can't work in v2: scramble scores belong to the duo, and in best ball a picked-up player simply
+ * has no row. Count-agnostic: a short-handed round with three matches is complete when those three
+ * are decided.
  */
-export function isRoundComplete(
-  participants: RoundParticipant[],
-  scores: HoleScorePresence[],
-  roundId: string,
-): boolean {
-  const roundPlayerIds = participants
-    .filter((p) => p.roundId === roundId)
-    .map((p) => p.playerId);
-  if (roundPlayerIds.length === 0) return false;
-
-  const roundScores = scores.filter((s) => s.roundId === roundId);
-  return roundPlayerIds.every((playerId) =>
-    Array.from({ length: 18 }, (_, i) => i + 1).every((hole) =>
-      roundScores.some((s) => s.playerId === playerId && s.hole === hole),
-    ),
-  );
+export function isRoundComplete(matchStates: MatchState[]): boolean {
+  return matchStates.length > 0 && matchStates.every(isMatchDecided);
 }
 
 export interface RoundStatus {
