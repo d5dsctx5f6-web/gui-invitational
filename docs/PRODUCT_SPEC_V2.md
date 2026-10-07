@@ -24,7 +24,10 @@ A live-scoring app that runs a 16-man golf trip: two teams, duo scramble match p
 
 ### Rounds & format
 - **2 competitive rounds**, Saturday and Sunday. (Friday fun round = itinerary only; the scoring engine never touches it.)
-- **One format, both days: 2-man scramble, gross, duo vs duo match play.** Both partners tee off; the duo plays the better ball; both play in from there. One score per duo per hole.
+- **Format is set per round** (admin switch, default scramble; Saturday is always scramble). Duo vs duo match play, gross, in either format:
+  - **Scramble:** both partners tee off; the duo plays the better ball; both play in from there. One score per duo per hole.
+  - **Best ball (optional, Sunday only in practice):** each player plays his own ball; the duo's hole score is the **lowest raw score** of its two players. A player who picks up is left blank; a duo needs at least one score to post the hole.
+  - **The format locks at the first posted score** for that round (database-enforced). The rulebook requires the commissioner to announce Sunday's format before Pairings Night II.
 - Each round: 8 vs 8, **four duo-vs-duo matches** running as four simultaneous foursomes.
 
 ### Pairings Night — the live declare-and-counter draft
@@ -45,19 +48,24 @@ Runs twice per trip: **Friday night** (sets Saturday's four matches) and **Satur
 - Index (GHIN where a player has one, assigned trip index otherwise) is visible to both captains on the Pairings Night board — Ryder Cup style intel for matchmaking. It computes into nothing downstream; it's shown, not scored.
 
 ### Mercy rule — double bogey cap
-- No duo score counts higher than **par + 2** in match state. A scorekeeper can enter whatever the duo actually made on a disaster hole; the engine caps the number that's used for match play. Nothing else in the app reads a raw over-cap score, so this is a pace/match rule only — store the real number, cap it once, at computation.
+- No duo score counts higher than **par + 2** in match state (in best ball, the cap applies to the duo's counting score; capping each ball then taking the lower equals taking the lower then capping). A scorekeeper can enter whatever the duo actually made on a disaster hole; the engine caps the number that's used for match play. Nothing else in the app reads a raw over-cap score, so this is a pace/match rule only — store the real number, cap it once, at computation.
 
 ### Reverse mulligan — one per duo per round
-- Each duo gets **one reverse mulligan per round**: force the opposing duo to replay their last shot in that match. Must be called immediately, before the next shot is played, or it's waived.
-- Whatever the duo makes on the replay **is the score.** No two-score rule, no divergent tracking — a scramble produces one number per hole, period.
+- Each duo gets **one reverse mulligan per round** (one per duo, per round): force the opposing duo to replay their last shot in that match. Must be called immediately, before the next shot is played, or it's waived.
+- Whatever the duo makes on the replay **is the score.** No two-score rule, no divergent tracking. In best ball the replayed shot belongs to one opposing player, and his replay result is simply his score for the hole.
 
 ### Drives Used
-- One tap per hole: which partner's tee shot the duo played. All 18 holes, par 3s included. Purely informational — feeds a "who carried" leaderboard. Never touches match state, points, or money.
+- **Scramble rounds only** (hidden in best ball, where everyone plays his own drive). One optional tap per duo per hole: which partner's tee shot the duo played. All 18 holes, par 3s included. Purely informational — feeds a "who carried" leaderboard. Never touches match state, points, or money.
 
 ### Money — Challenge Ledger only
 - **The Challenge Ledger is the sole money mechanism.** Any player logs a bet against any other (parties, stake, plain-words terms); the counterparty taps accept to make it official; winner marked, amount hits the ledger. Admin can resolve or void.
 - **One-tap bet presets:** a short menu of the trip's standing bets so logging one is a tap and a name, not typing terms from scratch. Final preset list is a ledger-brief decision, not a spec decision.
 - Nothing else. No skins, no cup pot. Running ledger per player; **one settle-up number per man** at trip's end. The app tracks money; it never moves money.
+
+### Scorekeeping
+- **Any of the four players in a match can post or edit both duos' scores for that match, and log either duo's reverse mulligan call.** Whoever has a phone out does it; the signed paper card is the backup. Enforced by the database (RLS `can_score_duo()`), not just the UI.
+- **Drives Used is prompted on every hole (scramble) but never required to post.**
+- Undoing a reverse mulligan call, deleting scores, and changing a locked format are commissioner-only, through admin Corrections.
 
 ### Paper scorecards
 > **Paper scorecards.** Every foursome carries a printed card and marks it each hole. The app is canonical for live scoring and standings. At the end of the round, both duos sign the card. If the signed card and the app disagree, the commissioner reconciles to the signed card through admin.

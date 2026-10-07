@@ -611,6 +611,23 @@ export async function setRoundTee(formData: FormData) {
   flash(`Active tee set to ${tee.tee_name}`);
 }
 
+/** Scramble <-> best ball for one round. The database trigger (0030) locks this once any score
+ *  exists for the round and raises the plain message shown below. */
+export async function setRoundFormat(formData: FormData) {
+  await requireAdmin();
+  const roundId = String(formData.get("roundId"));
+  const format = String(formData.get("format"));
+  if (format !== "scramble" && format !== "best_ball") flashError("Unknown format");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("rounds").update({ format }).eq("id", roundId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/score");
+  flash(`Round format set to ${format === "best_ball" ? "best ball" : "scramble"}`);
+}
+
 export async function updateRound(formData: FormData) {
   await requireAdmin();
   const roundId = String(formData.get("roundId"));

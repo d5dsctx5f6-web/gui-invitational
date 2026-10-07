@@ -1,201 +1,26 @@
 import Link from "next/link";
 import { SignInGate } from "../SignInGate";
-import { dotsForPlayer } from "@/engine/src";
 import { getCurrentPlayer } from "@/lib/auth/player";
 import { createClient } from "@/lib/supabase/server";
-import pageStyles from "../page.module.css";
+import { rosterQuery } from "@/lib/season";
+import { Card } from "../design-preview/components/Card";
+import hedges from "../_hedges/hedges.module.css";
 import { Scorecard } from "./Scorecard";
-import styles from "./picker.module.css";
-import type {
-  ExistingHoleScore,
-  ScorecardData,
-  ScorecardDuo,
-  ScorecardHoleMeta,
-  ScorecardPlayer,
-  ScorecardReverseMulligan,
-} from "./types";
+import { fetchSnapshot } from "./fetchSnapshot";
+import type { ScoreData, ScoreDuo } from "./types";
 
 export const dynamic = "force-dynamic";
 
-interface MatchRow {
-  id: string;
-  round_id: string;
-  team_a_id: string;
-  team_b_id: string;
-  slot: string;
-  tee_time: string | null;
-}
-
-interface DuoSubmissionRow {
-  team_id: string;
-  duo_a_player_1: string;
-  duo_a_player_2: string | null;
-  duo_b_player_1: string | null;
-  duo_b_player_2: string | null;
-}
-
-function formatName(format: string): string {
-  return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
-}
-
-async function loadScorecardData(match: MatchRow): Promise<ScorecardData | null> {
-  const supabase = await createClient();
-
-  const { data: round } = await supabase
-    .from("rounds")
-    .select("id, date, format, course_id, default_tee_id")
-    .eq("id", match.round_id)
-    .single();
-  if (!round?.default_tee_id) return null;
-
-  const { data: tee } = await supabase
-    .from("course_tees")
-    .select("rating, slope, par, stroke_index, par_by_hole, yardage_by_hole")
-    .eq("id", round.default_tee_id)
-    .single();
-  if (!tee) return null;
-
-  const { data: course } = await supabase
-    .from("courses")
-    .select("name")
-    .eq("id", round.course_id)
-    .single();
-
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, name")
-    .in("id", [match.team_a_id, match.team_b_id]);
-
-  const { data: duoRows } = await supabase
-    .from("duo_submissions")
-    .select(
-      "team_id, duo_a_player_1, duo_a_player_2, duo_b_player_1, duo_b_player_2",
-    )
-    .eq("round_id", match.round_id)
-    .in("team_id", [match.team_a_id, match.team_b_id]);
-
-  const duoByTeam = new Map<string, DuoSubmissionRow>(
-    (duoRows ?? []).map((row) => [row.team_id, row]),
-  );
-
-  function duoPlayerIds(teamId: string, slot: "A" | "B"): string[] {
-    const row = duoByTeam.get(teamId);
-    if (!row) return [];
-    const [p1, p2] =
-      slot === "A"
-        ? [row.duo_a_player_1, row.duo_a_player_2]
-        : [row.duo_b_player_1, row.duo_b_player_2];
-    return [p1, p2].filter((id): id is string => id !== null);
-  }
-
-  const slot: "A" | "B" = match.slot === "A" ? "A" : "B";
-  const teamAPlayerIds = duoPlayerIds(match.team_a_id, slot);
-  const teamBPlayerIds = duoPlayerIds(match.team_b_id, slot);
-  const allPlayerIds = [...teamAPlayerIds, ...teamBPlayerIds];
-  if (allPlayerIds.length === 0) return null;
-
-  const { data: players } = await supabase
-    .from("players")
-    .select("id, name, index")
-    .in("id", allPlayerIds);
-
-  const { data: holeScores } = await supabase
-    .from("hole_scores")
-    .select("player_id, hole, strokes, match_strokes, breakfast_ball, mulligan")
-    .eq("round_id", match.round_id)
-    .in("player_id", allPlayerIds);
-
-  // Brief 29: mercy_called (migration 0024) fetched separately so a database that hasn't run
-  // it yet still loads the scorecard — same decoupled-fetch pattern as tee_time/skins_buy_in.
-  // This query failing (or the column not existing) should only affect the mercy flag, never
-  // break hole_scores loading for everyone.
-  const { data: mercyRows } = await supabase
-    .from("hole_scores")
-    .select("player_id, hole, mercy_called")
-    .eq("round_id", match.round_id)
-    .in("player_id", allPlayerIds);
-  const mercyByKey = new Map<string, boolean>(
-    (mercyRows ?? []).map((r) => [`${r.player_id}:${r.hole}`, r.mercy_called]),
-  );
-
-  const { data: rmRows } = await supabase
-    .from("reverse_mulligans")
-    .select("id, team_id, hole, victim_player_id, original_holed_score")
-    .eq("round_id", match.round_id)
-    .in("team_id", [match.team_a_id, match.team_b_id]);
-
-  const reverseMulligans: ScorecardReverseMulligan[] = (rmRows ?? []).map((row) => ({
-    id: row.id,
-    teamId: row.team_id,
-    hole: row.hole,
-    victimPlayerId: row.victim_player_id,
-    originalHoledScore: row.original_holed_score,
-  }));
-
-  const strokeIndexByHole: number[] = tee.stroke_index;
-  const parByHole: number[] | null = tee.par_by_hole;
-  const yardageByHole: number[] | null = tee.yardage_by_hole;
-  const teeSetup = { rating: tee.rating, slope: tee.slope, par: tee.par };
-
-  function buildPlayer(id: string): ScorecardPlayer | null {
-    const player = players?.find((p) => p.id === id);
-    if (!player) return null;
-    const dotsByHole = dotsForPlayer(player.index, teeSetup, strokeIndexByHole);
-    return { id: player.id, name: player.name, dotsByHole, hasIndex: player.index !== null };
-  }
-
-  function buildDuo(teamId: string, playerIds: string[]): ScorecardDuo {
-    const team = teams?.find((t) => t.id === teamId);
-    return {
-      teamId,
-      teamName: team?.name ?? "Unnamed team",
-      players: playerIds
-        .map(buildPlayer)
-        .filter((p): p is ScorecardPlayer => p !== null),
-    };
-  }
-
-  const holes: ScorecardHoleMeta[] = strokeIndexByHole.map((si, i) => ({
-    hole: i + 1,
-    par: parByHole?.[i] ?? tee.par / 18,
-    yardage: yardageByHole?.[i] ?? null,
-    strokeIndex: si,
-  }));
-
-  const existingScores: ExistingHoleScore[] = (holeScores ?? []).map(
-    (row) => ({
-      playerId: row.player_id,
-      hole: row.hole,
-      strokes: row.strokes,
-      matchStrokes: row.match_strokes,
-      breakfastBall: row.breakfast_ball,
-      mulligan: row.mulligan,
-      mercyCalled: mercyByKey.get(`${row.player_id}:${row.hole}`) ?? false,
-    }),
-  );
-
-  return {
-    matchId: match.id,
-    roundId: match.round_id,
-    courseName: course?.name ?? "Unknown course",
-    format: round.format,
-    date: round.date,
-    teeTime: match.tee_time,
-    duoA: buildDuo(match.team_a_id, teamAPlayerIds),
-    duoB: buildDuo(match.team_b_id, teamBPlayerIds),
-    holes,
-    existingScores,
-    reverseMulligans,
-  };
-}
-
-function Message({ children }: { children: React.ReactNode }) {
+function EmptyState({ title, message }: { title: string; message: string }) {
   return (
-    <main style={{ padding: 24, color: "var(--cream)" }}>
-      <Link href="/" className={pageStyles.backLink}>
+    <main className={hedges.placeholder}>
+      <Link href="/" className={hedges.back}>
         ← Home
       </Link>
-      <p>{children}</p>
+      <h1 className={hedges.title}>{title}</h1>
+      <Card>
+        <p className={hedges.body}>{message}</p>
+      </Card>
     </main>
   );
 }
@@ -203,178 +28,131 @@ function Message({ children }: { children: React.ReactNode }) {
 export default async function ScorePage({
   searchParams,
 }: {
-  searchParams: Promise<{ round?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const player = await getCurrentPlayer();
-  const { round: roundParam } = await searchParams;
+  const params = await searchParams;
+  const supabase = await createClient();
+  const me = await getCurrentPlayer();
 
-  if (!player) {
-    const supabase = await createClient();
-    const { data: players } = await supabase
-      .from("players")
-      .select("id, name")
-      .order("name");
-
+  if (!me) {
+    const { data: players } = await rosterQuery<{ id: string; name: string }>(supabase, "id, name");
     return (
-      <main className={pageStyles.page}>
-        <Link href="/" className={pageStyles.backLink}>
+      <main className={hedges.placeholder}>
+        <Link href="/" className={hedges.back}>
           ← Home
         </Link>
-        <p style={{ color: "var(--cream)", textAlign: "center" }}>
-          Sign in with your name and PIN to score this round.
-        </p>
+        <h1 className={hedges.title}>Score</h1>
+        <p className={hedges.body}>Sign in with your name and PIN to post scores.</p>
         <SignInGate players={players ?? []} />
       </main>
     );
   }
 
-  const supabase = await createClient();
+  // The signed-in player's duos, across rounds. The match is the two duos sharing round + slot.
+  const { data: myDuos } = await supabase
+    .from("duos")
+    .select("id, round_id, team_id, match_slot, player_1_id, player_2_id")
+    .or(`player_1_id.eq.${me.id},player_2_id.eq.${me.id}`);
 
-  // Brief 10: which match is this signed-in player actually in? A team pairing is two match
-  // rows (slot A + slot B) sharing the same team_a_id/team_b_id — team membership alone can't
-  // tell them apart, since both belong to the player's team either way. The real disambiguator
-  // is duo_submissions: which slot the player's own duo landed in for that round. "Which round"
-  // is the only genuine ambiguity (if their team has matches recorded in more than one round at
-  // once) — "which of the two identical-looking match rows" is never a real player choice.
-  const { data: myTeamRows } = await supabase
-    .from("team_members")
-    .select("team_id")
-    .eq("player_id", player.id);
-  const myTeamIds = (myTeamRows ?? []).map((r) => r.team_id);
-
-  if (myTeamIds.length === 0) {
+  if (!myDuos || myDuos.length === 0) {
     return (
-      <Message>
-        You&apos;re not assigned to a team yet — check back after admin publishes the teams.
-      </Message>
+      <EmptyState
+        title="Score"
+        message="You're not in a match yet. Once the commissioner sets the pairings, your match shows up here."
+      />
     );
   }
 
-  const { data: allMatchesCore } = await supabase
-    .from("matches")
-    .select("id, round_id, team_a_id, team_b_id, slot");
-  // Decoupled (same standing pattern as skins_buy_in/season trophies): tee_time (migration
-  // 0023) fetched separately so match-based routing keeps working on a database that hasn't
-  // run it yet — this query feeding identity resolution must never fail as a whole over one
-  // optional column.
-  const { data: teeTimes } = await supabase.from("matches").select("id, tee_time");
-  const teeTimeById = new Map(
-    (teeTimes ?? []).map((t) => [t.id, t.tee_time as string | null]),
+  const { data: rounds } = await supabase
+    .from("rounds")
+    .select("id, round_number, date, format, course_id, default_tee_id, first_tee_time, group_interval_minutes")
+    .in("id", myDuos.map((d) => d.round_id));
+
+  const sortedRounds = (rounds ?? []).slice().sort((a, b) => (b.round_number ?? 0) - (a.round_number ?? 0));
+  // "Current round": the latest round this player has a duo in, unless a switcher chip picked one.
+  const round = sortedRounds.find((r) => r.id === params.round) ?? sortedRounds[0];
+  if (!round) {
+    return <EmptyState title="Score" message="Couldn't find your round. Try again in a moment." />;
+  }
+
+  const myDuo = myDuos.find((d) => d.round_id === round.id)!;
+  const { data: matchDuos } = await supabase
+    .from("duos")
+    .select("id, team_id, match_slot, player_1_id, player_2_id")
+    .eq("round_id", round.id)
+    .eq("match_slot", myDuo.match_slot);
+
+  const { data: teams } = await supabase
+    .from("teams")
+    .select("id, name")
+    .in("id", (matchDuos ?? []).map((d) => d.team_id));
+  const teamName = (id: string) => teams?.find((t) => t.id === id)?.name ?? "";
+
+  const north = (matchDuos ?? []).find((d) => teamName(d.team_id) === "North Hedges");
+  const south = (matchDuos ?? []).find((d) => teamName(d.team_id) === "South Hedges");
+  if (!north || !south) {
+    return (
+      <EmptyState
+        title="Score"
+        message="Your match isn't complete yet — it needs both a North and a South duo. The commissioner sets that."
+      />
+    );
+  }
+
+  const playerIds = [north.player_1_id, north.player_2_id, south.player_1_id, south.player_2_id].filter(
+    (id): id is string => !!id,
   );
-  const allMatches: MatchRow[] = (allMatchesCore ?? []).map((m) => ({
-    ...m,
-    tee_time: teeTimeById.get(m.id) ?? null,
-  }));
-  const myMatches: MatchRow[] = allMatches.filter(
-    (m) => myTeamIds.includes(m.team_a_id) || myTeamIds.includes(m.team_b_id),
-  );
-  const myRoundIds = [...new Set(myMatches.map((m) => m.round_id))];
+  const { data: players } = await supabase.from("players").select("id, name, is_test").in("id", playerIds);
+  const playerById = new Map((players ?? []).map((p) => [p.id, p]));
+  const toPlayer = (id: string) => ({ id, name: playerById.get(id)?.name ?? "?" });
 
-  if (myRoundIds.length === 0) {
+  const buildDuo = (d: typeof north, side: "A" | "B"): ScoreDuo => ({
+    id: d.id,
+    side,
+    teamName: teamName(d.team_id),
+    matchSlot: d.match_slot,
+    player1: toPlayer(d.player_1_id),
+    player2: d.player_2_id ? toPlayer(d.player_2_id) : null,
+  });
+
+  const [{ data: tee }, { data: course }] = await Promise.all([
+    round.default_tee_id
+      ? supabase.from("course_tees").select("tee_name, par_by_hole, yardage_by_hole").eq("id", round.default_tee_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.from("courses").select("name").eq("id", round.course_id).maybeSingle(),
+  ]);
+
+  if (!tee?.par_by_hole) {
     return (
-      <Message>
-        You&apos;re not in any matchup yet — check back after admin publishes the matchups.
-      </Message>
+      <EmptyState
+        title="Score"
+        message="This round has no tee with per-hole pars yet. The commissioner sets the tee in admin."
+      />
     );
   }
 
-  const targetRoundId =
-    myRoundIds.length === 1
-      ? myRoundIds[0]
-      : myRoundIds.includes(roundParam ?? "")
-        ? roundParam!
-        : null;
+  const initial = await fetchSnapshot(supabase, round.format, round.id, [north.id, south.id]);
 
-  if (!targetRoundId) {
-    // Genuinely ambiguous: this player's team has matches recorded in more than one round.
-    const [{ data: rounds }, { data: courses }] = await Promise.all([
-      supabase.from("rounds").select("id, date, format, course_id").in("id", myRoundIds),
-      supabase.from("courses").select("id, name"),
-    ]);
+  const data: ScoreData = {
+    me: { id: me.id, name: me.name, isTest: !!playerById.get(me.id)?.is_test },
+    round: {
+      id: round.id,
+      roundNumber: round.round_number,
+      format: round.format,
+      courseName: course?.name ?? "",
+      teeName: tee.tee_name,
+      firstTeeTime: round.first_tee_time,
+      intervalMinutes: round.group_interval_minutes,
+    },
+    parByHole: tee.par_by_hole,
+    yardageByHole: tee.yardage_by_hole ?? Array(18).fill(null),
+    duoA: buildDuo(north, "A"),
+    duoB: buildDuo(south, "B"),
+    otherRounds: sortedRounds
+      .filter((r) => r.id !== round.id)
+      .map((r) => ({ id: r.id, label: r.round_number ? `Round ${r.round_number}` : r.date })),
+    initial,
+  };
 
-    return (
-      <main className={styles.page}>
-        <Link href="/" className={pageStyles.backLink}>
-          ← Home
-        </Link>
-        <div className={styles.eyebrow}>Which round?</div>
-        <div className={styles.list}>
-          {myRoundIds.map((rId) => {
-            const round = rounds?.find((r) => r.id === rId);
-            const courseNm =
-              courses?.find((c) => c.id === round?.course_id)?.name ?? "Unknown course";
-            return (
-              <Link key={rId} href={`/score?round=${rId}`} className={styles.item}>
-                <div className={styles.itemTitle}>
-                  {courseNm} — {round ? formatName(round.format) : "?"}
-                </div>
-                <div className={styles.itemMeta}>{round?.date}</div>
-              </Link>
-            );
-          })}
-        </div>
-      </main>
-    );
-  }
-
-  const teamId = myTeamIds.find((id) =>
-    myMatches.some(
-      (m) => m.round_id === targetRoundId && (m.team_a_id === id || m.team_b_id === id),
-    ),
-  )!;
-
-  const { data: duoRow } = await supabase
-    .from("duo_submissions")
-    .select("duo_a_player_1, duo_a_player_2, duo_b_player_1, duo_b_player_2")
-    .eq("round_id", targetRoundId)
-    .eq("team_id", teamId)
-    .maybeSingle();
-
-  if (!duoRow) {
-    return (
-      <Message>
-        Your team&apos;s duos haven&apos;t been submitted for this round yet — check back once
-        your captain commits.
-      </Message>
-    );
-  }
-
-  const mySlot: "A" | "B" | null =
-    duoRow.duo_a_player_1 === player.id || duoRow.duo_a_player_2 === player.id
-      ? "A"
-      : duoRow.duo_b_player_1 === player.id || duoRow.duo_b_player_2 === player.id
-        ? "B"
-        : null;
-
-  if (!mySlot) {
-    return <Message>You&apos;re not in this round&apos;s lineup for your team.</Message>;
-  }
-
-  const myMatch = myMatches.find(
-    (m) =>
-      m.round_id === targetRoundId &&
-      m.slot === mySlot &&
-      (m.team_a_id === teamId || m.team_b_id === teamId),
-  );
-
-  if (!myMatch) {
-    return (
-      <Message>
-        Your matchup isn&apos;t fully set up yet — check back after admin publishes it.
-      </Message>
-    );
-  }
-
-  const data = await loadScorecardData(myMatch);
-
-  if (!data) {
-    return (
-      <Message>
-        The opposing duo hasn&apos;t been submitted yet — check back once both captains
-        commit.
-      </Message>
-    );
-  }
-
-  return <Scorecard data={data} currentPlayerId={player.id} />;
+  return <Scorecard data={data} />;
 }

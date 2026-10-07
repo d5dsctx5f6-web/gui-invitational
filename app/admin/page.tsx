@@ -13,6 +13,7 @@ import {
   reassignChallengeBetWinner,
   removeTeamMember,
   resetPlayerPin,
+  setRoundFormat,
   setRoundTee,
   setSeasonTrophies,
   setTeamCaptain,
@@ -25,11 +26,14 @@ import {
 } from "./actions";
 import Link from "next/link";
 import { ConfirmDeleteButton } from "./ConfirmDeleteButton";
+import { Corrections } from "./Corrections";
+import { QaSandbox } from "./QaSandbox";
 import { buildDeleteWarning } from "./deleteWarnings";
 import styles from "./admin.module.css";
 import pageStyles from "../page.module.css";
 import { isAdminAuthed } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentSeason, rosterQuery, seasonsQuery } from "@/lib/season";
 import { formatArizonaTime, utcIsoToArizonaDatetimeLocal } from "@/lib/timezone";
 import { deriveMatches, groupTeeTimeIso, isShortHanded, maxScoreByHole } from "@/engine/src";
 
@@ -53,6 +57,7 @@ interface Round {
   id: string;
   date: string;
   round_number: number | null;
+  format: "scramble" | "best_ball";
   course_id: string;
   default_tee_id: string | null;
   first_tee_time: string | null;
@@ -112,52 +117,76 @@ interface ScheduleItem {
 // in Brief 33 alongside the scorecard.
 async function loadAdminData() {
   const supabase = await createClient();
+
+  // Brief 33 Part B: everything below is scoped to the CURRENT (real) season. The QA sandbox season
+  // has its own teams/rounds/duos and must never show up in these 2027 sections.
+  const season = await getCurrentSeason(supabase);
+  const seasonId = season?.id ?? "";
+
+  const [teams, rounds] = await Promise.all([
+    supabase.from("teams").select("id, name, captain_player_id").eq("season_id", seasonId).order("name"),
+    supabase
+      .from("rounds")
+      .select("id, date, round_number, format, course_id, default_tee_id, first_tee_time, group_interval_minutes, tee_time_note")
+      .eq("season_id", seasonId)
+      .order("round_number", { ascending: true, nullsFirst: false })
+      .order("date"),
+  ]);
+  const teamIds = (teams.data ?? []).map((t) => t.id);
+  const roundIds = (rounds.data ?? []).map((r) => r.id);
+
   const [
     players,
-    teams,
     teamMembers,
-    rounds,
     courses,
     courseTees,
     duos,
-    holeScoreDuoIds,
-    mulliganDuoIds,
     challengeBets,
     seasonsCore,
     scheduleItems,
   ] = await Promise.all([
-    supabase.from("players").select("id, name, index").order("name"),
-    supabase.from("teams").select("id, name, captain_player_id").order("name"),
-    supabase.from("team_members").select("team_id, player_id"),
-    supabase
-      .from("rounds")
-      .select("id, date, round_number, course_id, default_tee_id, first_tee_time, group_interval_minutes, tee_time_note")
-      .order("round_number", { ascending: true, nullsFirst: false })
-      .order("date"),
+    rosterQuery<Player>(supabase, "id, name, index"),
+    supabase.from("team_members").select("team_id, player_id").in("team_id", teamIds),
     supabase.from("courses").select("id, name").eq("is_active", true).order("name"),
     supabase
       .from("course_tees")
-      .select("id, course_id, tee_name, rating, slope, par, stroke_index, par_by_hole, yardage_by_hole")
+      .select("id, course_id, tee_name, rating, slope, par, stroke_index, par_by_hole, yardage_by_hole, courses!inner(is_active)")
+      .eq("courses.is_active", true)
       .order("tee_name"),
-    supabase.from("duos").select("id, round_id, team_id, player_1_id, player_2_id, match_slot").order("match_slot"),
-    // Lightweight FK-only fetches so a duo with scores shows as locked rather than offering a delete.
-    supabase.from("hole_scores").select("duo_id"),
-    supabase.from("reverse_mulligans").select("duo_id"),
+    supabase
+      .from("duos")
+      .select("id, round_id, team_id, player_1_id, player_2_id, match_slot")
+      .in("round_id", roundIds)
+      .order("match_slot"),
     supabase
       .from("challenge_bets")
       .select("id, proposer_id, acceptor_id, terms, stake, status, winner_player_id"),
-    supabase.from("seasons").select("id, year, name, cup_winner_team_id").order("year", { ascending: false }),
+    seasonsQuery<{ id: string; year: number; name: string; cup_winner_team_id: string | null }>(
+      supabase,
+      "id, year, name, cup_winner_team_id",
+    ),
     supabase
       .from("schedule_items")
       .select("id, season_id, title, starts_at, notes")
+      .eq("season_id", seasonId)
       .order("starts_at", { ascending: true, nullsFirst: false }),
+  ]);
+
+  // Lightweight FK-only fetches so a duo with scores shows as locked rather than offering a delete,
+  // and a round with scores shows its format as locked.
+  const duoIds = (duos.data ?? []).map((d) => d.id);
+  const [holeScoreDuoIds, playerScoreDuoIds, mulliganDuoIds] = await Promise.all([
+    supabase.from("hole_scores").select("duo_id").in("duo_id", duoIds),
+    supabase.from("player_hole_scores").select("duo_id").in("duo_id", duoIds),
+    supabase.from("reverse_mulligans").select("duo_id").in("duo_id", duoIds),
   ]);
 
   // Orphaned v1 trophy columns (Low Man / Skins King): fetched separately so the Champions wall
   // still renders if they're ever dropped.
   const { data: trophies } = await supabase
     .from("seasons")
-    .select("id, individual_champion_player_id, skins_king_player_id");
+    .select("id, individual_champion_player_id, skins_king_player_id")
+    .eq("is_test", false);
   const trophiesBySeason = new Map((trophies ?? []).map((t) => [t.id, t]));
   const seasonsList = (seasonsCore.data ?? []).map((s) => ({
     ...s,
@@ -180,6 +209,7 @@ async function loadAdminData() {
     ["course_tees", courseTees.error],
     ["duos", duos.error],
     ["hole_scores", holeScoreDuoIds.error],
+    ["player_hole_scores", playerScoreDuoIds.error],
     ["reverse_mulligans", mulliganDuoIds.error],
   ]
     .filter(([, e]) => e)
@@ -194,7 +224,7 @@ async function loadAdminData() {
     courses: (courses.data ?? []) as Course[],
     courseTees: (courseTees.data ?? []) as CourseTee[],
     duos: (duos.data ?? []) as DuoRow[],
-    scoresByDuo: countBy(holeScoreDuoIds.data ?? []),
+    scoresByDuo: countBy([...(holeScoreDuoIds.data ?? []), ...(playerScoreDuoIds.data ?? [])]),
     mulligansByDuo: countBy(mulliganDuoIds.data ?? []),
     challengeBets: (challengeBets.data ?? []) as ChallengeBet[],
     seasons: seasonsList,
@@ -335,6 +365,34 @@ export default async function AdminPage({
                   and both tees share pars, so nothing competitive changes.
                 </div>
               )}
+
+              {(() => {
+                const roundDuoIds = new Set(duos.filter((d) => d.round_id === round.id).map((d) => d.id));
+                const roundScores = [...roundDuoIds].reduce((n, id) => n + (scoresByDuo.get(id) ?? 0), 0);
+                const locked = roundScores > 0;
+                return (
+                  <>
+                    <div className={styles.hint}>
+                      Format:{" "}
+                      <b style={{ color: "var(--gold)" }}>{round.format === "best_ball" ? "Best ball" : "Scramble"}</b>
+                    </div>
+                    <div className={styles.inlineForm}>
+                      {(["scramble", "best_ball"] as const).map((f) => (
+                        <form key={f} action={setRoundFormat}>
+                          <input type="hidden" name="roundId" value={round.id} />
+                          <input type="hidden" name="format" value={f} />
+                          <button className={f === round.format ? styles.btn : styles.btnGhost} type="submit" disabled={locked && f !== round.format}>
+                            {f === "best_ball" ? "Best ball" : "Scramble"}
+                          </button>
+                        </form>
+                      ))}
+                    </div>
+                    {locked && (
+                      <div className={styles.hint}>Format is locked — scores have been posted for this round.</div>
+                    )}
+                  </>
+                );
+              })()}
 
               <div className={styles.hint}>
                 Tee times (Arizona time):{" "}
@@ -709,6 +767,10 @@ export default async function AdminPage({
           </div>
         ))}
       </section>
+
+      <QaSandbox />
+
+      <Corrections params={params} />
 
       {/* ---------------- Challenge Ledger ---------------- */}
       <section className={styles.section}>

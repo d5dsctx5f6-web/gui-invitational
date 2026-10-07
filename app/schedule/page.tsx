@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentSeason } from "@/lib/season";
 import { formatArizonaDate, formatArizonaTime } from "@/lib/timezone";
 import pageStyles from "../page.module.css";
 import styles from "./schedule.module.css";
@@ -53,12 +54,8 @@ export default async function SchedulePage() {
 
   // Content this simple changes rarely — a plain server-rendered refetch on navigation
   // (revalidatePath from the admin actions) is enough; no realtime subscription needed.
-  const { data: season } = await supabase
-    .from("seasons")
-    .select("id, year, name")
-    .order("year", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Brief 33 Part B: the one definition of "current season" (newest non-test season).
+  const season = await getCurrentSeason(supabase);
 
   const { data: items } = season
     ? await supabase
@@ -85,7 +82,7 @@ export default async function SchedulePage() {
   // a fragile date-label join for no real benefit over a separate, equally visible section.
   const [{ data: rounds }, { data: matches }, { data: teams }, { data: courses }] =
     await Promise.all([
-      supabase.from("rounds").select("id, date, format, course_id").order("date"),
+      supabase.from("rounds").select("id, date, format, course_id").eq("season_id", season?.id ?? "").order("date"),
       supabase.from("matches").select("round_id, team_a_id, team_b_id, slot, tee_time"),
       supabase.from("teams").select("id, name"),
       supabase.from("courses").select("id, name"),

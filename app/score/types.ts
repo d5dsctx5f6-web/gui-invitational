@@ -1,60 +1,66 @@
-export interface ScorecardPlayer {
+import type { RoundFormat } from "@/engine/src";
+
+export interface ScorePlayer {
   id: string;
   name: string;
-  /** Strokes received per hole, index 0 = hole 1. */
-  dotsByHole: number[];
-  /** False means no real index on file yet — dotsByHole is all zeros by design (Brief 18), not
-   *  a computed handicap. Surfaced in the UI so that's obvious, not silent. */
-  hasIndex: boolean;
 }
 
-export interface ScorecardHoleMeta {
+/** One duo of the match. Side A is always North Hedges, side B always South Hedges. */
+export interface ScoreDuo {
+  id: string;
+  side: "A" | "B";
+  teamName: string;
+  matchSlot: number;
+  player1: ScorePlayer;
+  player2: ScorePlayer | null;
+}
+
+export interface ScrambleScoreRow {
+  duoId: string;
   hole: number;
-  par: number;
-  yardage: number | null;
-  strokeIndex: number;
+  strokes: number;
+  teeShotPlayerId: string | null;
+  updatedBy: string | null; // player id; null = the commissioner (service role)
+  updatedAt: string;
 }
 
-export interface ExistingHoleScore {
+export interface BestBallScoreRow {
+  duoId: string;
   playerId: string;
   hole: number;
   strokes: number;
-  matchStrokes: number | null;
-  breakfastBall: boolean;
-  mulligan: boolean;
-  /** Brief 29: the mercy rule — gross capped at that hole's par + 4. Unlike breakfast
-   *  ball/mulligan, no per-round usage limit. */
-  mercyCalled: boolean;
+  updatedBy: string | null;
+  updatedAt: string;
 }
 
-export interface ScorecardDuo {
-  teamId: string;
-  teamName: string;
-  players: ScorecardPlayer[];
-}
-
-export interface ScorecardReverseMulligan {
+export interface MulliganRow {
   id: string;
-  teamId: string;
+  duoId: string;
   hole: number;
-  victimPlayerId: string;
-  /** Set only when the reversed shot was already holed — the real score to preserve for
-   * skins/individual while match_strokes carries the replay. Null means a simple non-holed
-   * reversal: strokes gets overwritten directly, no divergence. */
-  originalHoledScore: number | null;
 }
 
-export interface ScorecardData {
-  matchId: string;
-  roundId: string;
-  courseName: string;
-  format: string;
-  date: string;
-  /** This specific matchup's tee time (Brief 17), null if not yet assigned. */
-  teeTime: string | null;
-  duoA: ScorecardDuo;
-  duoB: ScorecardDuo;
-  holes: ScorecardHoleMeta[];
-  existingScores: ExistingHoleScore[];
-  reverseMulligans: ScorecardReverseMulligan[];
+export interface ScoreSnapshot {
+  scramble: ScrambleScoreRow[];
+  bestBall: BestBallScoreRow[];
+  mulligans: MulliganRow[];
+}
+
+export interface ScoreData {
+  me: ScorePlayer & { isTest: boolean };
+  round: {
+    id: string;
+    roundNumber: number | null;
+    format: RoundFormat;
+    courseName: string;
+    teeName: string | null;
+    firstTeeTime: string | null;
+    intervalMinutes: number;
+  };
+  parByHole: number[];
+  yardageByHole: (number | null)[];
+  duoA: ScoreDuo;
+  duoB: ScoreDuo;
+  /** The other rounds this player has a duo in, for the round switcher. */
+  otherRounds: { id: string; label: string }[];
+  initial: ScoreSnapshot;
 }

@@ -16,7 +16,7 @@
 | **Fri Mar 26 — night** | **Pairings Night I.** Live, in the app, screen-shared by Chris. Sets Saturday's four matches. |
 | **Sat Mar 27** | **Round 1 — Scramble.** 12 points on the course. |
 | **Sat Mar 27 — night** | **Pairings Night II.** Sets Sunday's four matches — order automatically reverses Friday's. |
-| **Sun Mar 28** | **Round 2 — Scramble.** Early tee times so the cup is decided before departures. Trophy ceremony. 12 points on the course. |
+| **Sun Mar 28** | **Round 2 — Scramble or best ball (announced before Pairings Night II).** Early tee times so the cup is decided before departures. Trophy ceremony. 12 points on the course. |
 
 ---
 
@@ -48,18 +48,18 @@ Twice per trip: **Friday night**, setting Saturday's matches, and **Saturday nig
 
 ## 5. The competition
 
-- **2-man scramble, gross, both days.** Both partners tee off; play the better ball; both play in from there. One team score per hole, no exceptions.
+- **Format.** Saturday is a 2-man scramble: both partners tee off, play the better ball, both play in from there, one team score per hole. **Sunday is a scramble by default, but the commissioner may call 2-man best ball instead:** each player plays his own ball the whole hole, and the duo's score is the lower of its two. Either way it's gross, duo vs duo, 3 points a match. The commissioner announces Sunday's format before Pairings Night II, so captains can pair for it.
 - Duo vs duo match play. Every match worth **3 points**: front 9, back 9, overall 18 (win = 1, halve = ½). 12 points per day, **24 total** — most cumulative points wins the cup.
-- **No strokes given, anywhere.** Straight up, gross scramble, both rounds.
+- **No strokes given, anywhere.** Straight up, gross, both rounds.
 - **Handicaps are captain intel, not a scoring input.** Index shows on the Pairings Night board so captains know who they're matching up — beyond that, it does nothing.
-- **The mercy rule — double bogey cap.** If a hole's not happening, pick it up. Worst it can cost your duo is a double bogey — a par 4 caps at 6, a par 5 at 7. The app enforces this in match scoring even if a bigger number gets written down.
-- **The reverse mulligan — the duo's weapon.** Once per round, each duo can force the opposing duo to replay their last shot. Call it immediately, before the next shot — otherwise it's gone. Whatever they make on the replay is the score. No exceptions, no asterisks.
+- **The mercy rule — double bogey cap.** If a hole's not happening, pick it up. Worst it can cost your duo is a double bogey — a par 4 caps at 6, a par 5 at 7. In best ball, the cap applies to the duo's counting score. The app enforces this in match scoring even if a bigger number gets written down.
+- **The reverse mulligan — the duo's weapon.** **One per duo, per round.** Each duo can force the opposing duo to replay their last shot. Call it immediately, before the next shot — otherwise it's gone. Whatever they make on the replay is the score. In best ball, the replayed shot belongs to one opposing player; his replay result is his score. No exceptions, no asterisks.
 
 ---
 
 ## 6. Drives Used
 
-One tap per hole: whose tee shot the duo played. Eighteen taps a round, nothing more. It doesn't win or lose a hole — it settles the argument about who's actually carrying the team.
+**Scramble rounds only.** One tap per hole: whose tee shot the duo played. Eighteen taps a round, nothing more. It doesn't win or lose a hole — it settles the argument about who's actually carrying the team.
 
 ---
 

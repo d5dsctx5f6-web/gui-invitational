@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { rosterQuery, seasonsQuery } from "@/lib/season";
 import { EVENT_NAME } from "@/lib/config";
 import pageStyles from "../page.module.css";
 import styles from "./champions.module.css";
@@ -47,10 +48,11 @@ function romanish(year: number): string {
 export default async function ChampionsPage() {
   const supabase = await createClient();
 
-  const { data: seasonsCore } = await supabase
-    .from("seasons")
-    .select("id, year, name")
-    .order("year", { ascending: false });
+  // Brief 33 Part B: real seasons only — the QA sandbox season never appears on the champions wall.
+  const { data: seasonsCore } = await seasonsQuery<{ id: string; year: number; name: string }>(
+    supabase,
+    "id, year, name",
+  );
 
   // Fetched separately so a database that hasn't run 0020 (the trophy columns) yet still
   // shows the season list — same reasoning as rounds.skins_buy_in in /admin and /money.
@@ -68,7 +70,7 @@ export default async function ChampionsPage() {
   }));
 
   const { data: teams } = await supabase.from("teams").select("id, name");
-  const { data: players } = await supabase.from("players").select("id, name");
+  const { data: players } = await rosterQuery<{ id: string; name: string }>(supabase, "id, name");
 
   const teamName = (id: string | null) =>
     id ? teams?.find((t) => t.id === id)?.name ?? "?" : null;
