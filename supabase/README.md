@@ -16,8 +16,8 @@ below for why each one has no v2.0 successor.
 |---|---|---|
 | `seasons` | `0002`, coin-flip/chip-off columns in `0025` | §3 champions wall — annual franchise, every table below hangs off a season. `coin_flip_winner_team_id`/`coin_flip_choice` are the one raw fact Friday's Pairings Night order derives from (store-raw-derive-everything, applied to the coin flip itself); `chip_off_winner_team_id` is a real-world event to record, not derived |
 | `players` | `0001` | Players, captains, draft — the locked 16-man roster |
-| `courses` / `course_tees` | `0003` | Handicaps — course rating/slope/par/stroke-index. Display-only now (course handicap conversion feeds captain intel on the Pairings Night board, never scoring — no strokes given anywhere in v2.0) |
-| `rounds` | `0004`, `format` dropped in `0025` | Rounds & formats — the two competitive rounds only (Friday fun round is `schedule_items`, engine never touches it). One format now, both days — day identity comes from `rounds.date` directly, no companion column needed |
+| `courses` / `course_tees` | `0003`, per-hole arrays `0009`, `is_active` + trip-course seed `0026`/`0027` | Handicaps — course rating/slope/par/stroke-index. Display-only now (course handicap conversion feeds captain intel on the Pairings Night board, never scoring — no strokes given anywhere in v2.0) |
+| `rounds` | `0004`, `format` dropped in `0025`, `round_number` + tee-time columns `0026`, seeded `0027` | Rounds & formats — the two competitive rounds only (Friday fun round is `schedule_items`, engine never touches it). One format now, both days — day identity comes from `rounds.date` directly, no companion column needed |
 | `teams` / `team_members` | `0005`, fixed-name constraint in `0025` | Players, captains, draft — exactly **North Hedges** and **South Hedges** per season now (structural `check`/`unique`, not four admin-named teams). Eight players per team, still no CHECK forcing exactly 8 (count-agnostic, per the open question in Brief 31 about a short-handed team) |
 | `duos` | `0025` | Pairings Night — round-scoped (not season-scoped; duos aren't fixed across the weekend), replaces the old `matches` table and `duo_submissions` together. Two rows sharing `round_id` + `match_slot` *are* a match — no separate table stores that pairing a second time |
 | `hole_scores` | `0007`, duo-scoped shape in `0025` | Mercy rule, Drives Used — the raw event table, now one row per duo per hole (a scramble has one score per duo). `strokes` is raw and uncapped; the double-bogey cap is engine-applied at computation time, never stored. `tee_shot_used_player_id` is the Drives Used tap |
@@ -105,3 +105,12 @@ admin/service-role-only writes (see `0025`), no RLS insert/update policy yet.
   nullable columns) — a duo can be down to one available player.
 - Nothing in the schema requires a `hole_scores` row to exist for every duo/round/hole —
   absence is just the absence of a row.
+
+### Brief 32 (`0026`, `0027`)
+
+- `0026` — adds `rounds.round_number` (unique per season), `first_tee_time`, `group_interval_minutes`,
+  `tee_time_note`, `courses.is_active`; retires unreferenced pre-2027 test rounds; changes the scoring
+  FKs (`hole_scores`/`reverse_mulligans` → duos/rounds, `duos` → teams/rounds, `rounds.course_id`) from
+  `CASCADE` to `RESTRICT`.
+- `0027` — idempotent seed: O'odham Gold, Saguaro Purple + White (with in-migration assertions), the two
+  rounds, North/South team rows, and Friday's Silverado schedule item.

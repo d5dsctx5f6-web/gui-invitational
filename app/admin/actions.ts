@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { checkPasscode, clearAdminSession, requireAdmin, setAdminSession } from "@/lib/auth/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { arizonaLocalToUtcIso } from "@/lib/timezone";
+import { validateDuo, type ExistingDuo } from "@/engine/src";
 
 function flash(message: string): never {
   redirect(`/admin?msg=${encodeURIComponent(message)}`);
@@ -12,6 +13,15 @@ function flash(message: string): never {
 
 function flashError(message: string): never {
   redirect(`/admin?err=${encodeURIComponent(message)}`);
+}
+
+// Postgres foreign_key_violation. Brief 32: the scoring tables reference duos/rounds/courses with
+// ON DELETE RESTRICT (0026), so the database refuses to delete anything that has scores. Every
+// delete below catches that and shows a plain message instead of the raw constraint text.
+const FK_VIOLATION = "23503";
+
+function flashDeleteError(error: { code?: string; message: string }, blockedMessage: string): never {
+  flashError(error.code === FK_VIOLATION ? blockedMessage : error.message);
 }
 
 export async function adminLogin(formData: FormData) {
@@ -31,58 +41,6 @@ export async function adminLogout() {
 // ---------------------------------------------------------------------------
 // Teams
 // ---------------------------------------------------------------------------
-
-export async function createTeam(formData: FormData) {
-  await requireAdmin();
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) flashError("Team name is required");
-
-  const supabase = createAdminClient();
-  const { data: season } = await supabase.from("seasons").select("id").limit(1).maybeSingle();
-  if (!season) flashError("No season exists yet");
-
-  const { error } = await supabase.from("teams").insert({ season_id: season.id, name });
-  if (error) flashError(error.message);
-
-  revalidatePath("/admin");
-  flash(`Team "${name}" created`);
-}
-
-export async function updateTeam(formData: FormData) {
-  await requireAdmin();
-  const teamId = String(formData.get("teamId"));
-  const name = String(formData.get("name") ?? "").trim();
-  const captainPlayerId = String(formData.get("captainPlayerId") ?? "") || null;
-  if (!name) flashError("Team name is required");
-
-  const supabase = createAdminClient();
-  const { error } = await supabase
-    .from("teams")
-    .update({ name, captain_player_id: captainPlayerId })
-    .eq("id", teamId);
-  if (error) flashError(error.message);
-
-  revalidatePath("/admin");
-  flash(`Team "${name}" updated`);
-}
-
-// Brief 9 Part A: cascades to team_members, matches (either side), duo_submissions, and
-// reverse_mulligans (0021) — a team's cup-winner reference on any season is cleared (set null),
-// not cascaded, so deleting a team never silently erases champions-wall history.
-export async function deleteTeam(formData: FormData) {
-  await requireAdmin();
-  const teamId = String(formData.get("teamId"));
-
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("teams").delete().eq("id", teamId);
-  if (error) flashError(error.message);
-
-  revalidatePath("/admin");
-  revalidatePath("/score");
-  revalidatePath("/duos");
-  revalidatePath("/champions");
-  flash("Team removed");
-}
 
 export async function addTeamMember(formData: FormData) {
   await requireAdmin();
@@ -118,103 +76,10 @@ export async function removeTeamMember(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// Rounds + Matchups
+// (Brief 32: the old Rounds + Matchups actions are gone — rounds are seeded, and a "match" is
+// derived from duos. The skins actions below are dead, left in place, and not reachable from
+// the admin UI.)
 // ---------------------------------------------------------------------------
-
-export async function createRound(formData: FormData) {
-  await requireAdmin();
-  const date = String(formData.get("date") ?? "");
-  const format = String(formData.get("format") ?? "");
-  const courseId = String(formData.get("courseId") ?? "");
-  const teeId = String(formData.get("teeId") ?? "") || null;
-  if (!date || !["shamble", "four_ball"].includes(format) || !courseId) {
-    flashError("Date, format, and course are required");
-  }
-
-  const supabase = createAdminClient();
-  const { data: season } = await supabase.from("seasons").select("id").limit(1).maybeSingle();
-  if (!season) flashError("No season exists yet");
-
-  const { error } = await supabase.from("rounds").insert({
-    season_id: season.id,
-    date,
-    format,
-    course_id: courseId,
-    default_tee_id: teeId,
-  });
-  if (error) flashError(error.message);
-
-  revalidatePath("/admin");
-  flash("Round created");
-}
-
-export async function upsertMatch(formData: FormData) {
-  await requireAdmin();
-  const matchId = String(formData.get("matchId") ?? "") || null;
-  const roundId = String(formData.get("roundId") ?? "");
-  const teamAId = String(formData.get("teamAId") ?? "");
-  const teamBId = String(formData.get("teamBId") ?? "");
-  const slot = String(formData.get("slot") ?? "");
-  const teeTimeRaw = String(formData.get("teeTime") ?? "").trim();
-  if (!roundId || !teamAId || !teamBId || !["A", "B"].includes(slot)) {
-    flashError("Round, both teams, and slot are required");
-  }
-  if (teamAId === teamBId) flashError("A team can't play itself");
-
-  const supabase = createAdminClient();
-  const row = {
-    round_id: roundId,
-    team_a_id: teamAId,
-    team_b_id: teamBId,
-    slot,
-    // Brief 26: the datetime-local input is a naive "wall clock" string with no timezone of its
-    // own — Chris always means Arizona time when he sets a tee time, regardless of where he
-    // happens to be sitting when he enters it, so this must not use new Date(raw).toISOString()
-    // (which would silently apply whatever timezone this server process happens to be in).
-    tee_time: teeTimeRaw === "" ? null : arizonaLocalToUtcIso(teeTimeRaw),
-  };
-  const { error } = matchId
-    ? await supabase.from("matches").update(row).eq("id", matchId)
-    : await supabase.from("matches").insert(row);
-  if (error) flashError(error.message);
-
-  revalidatePath("/admin");
-  revalidatePath("/score");
-  revalidatePath("/duos");
-  revalidatePath("/schedule");
-  flash(matchId ? "Matchup updated" : "Matchup added");
-}
-
-export async function deleteMatch(formData: FormData) {
-  await requireAdmin();
-  const matchId = String(formData.get("matchId"));
-
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("matches").delete().eq("id", matchId);
-  if (error) flashError(error.message);
-
-  revalidatePath("/admin");
-  flash("Matchup removed");
-}
-
-// Brief 9 Part A: deleting a round cascades to its matches, hole_scores, duo_submissions,
-// skins_entries, and reverse_mulligans — enforced at the DB level (0021), not walked manually
-// here, so it's atomic. The confirmation UI computes what's about to go before this ever runs.
-export async function deleteRound(formData: FormData) {
-  await requireAdmin();
-  const roundId = String(formData.get("roundId"));
-
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("rounds").delete().eq("id", roundId);
-  if (error) flashError(error.message);
-
-  revalidatePath("/admin");
-  revalidatePath("/score");
-  revalidatePath("/duos");
-  revalidatePath("/money");
-  revalidatePath("/schedule");
-  flash("Round removed");
-}
 
 // Brief 9 Part G: skins opt-in is a one-way door for players once confirmed — this is the
 // escape hatch for a genuine mistake (wrong player opted in, etc.), a commissioner override
@@ -322,25 +187,6 @@ export async function createCourse(formData: FormData) {
 
   revalidatePath("/admin");
   flash(`Course "${name}" created`);
-}
-
-// Brief 9 Part A: cascades to course_tees and (through rounds' own cascade, 0021) every
-// round played there and everything scored in those rounds. This is the deepest cascade admin
-// exposes — the confirmation message sums dependents across every round on the course, not
-// just direct course_tees.
-export async function deleteCourse(formData: FormData) {
-  await requireAdmin();
-  const courseId = String(formData.get("courseId"));
-
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("courses").delete().eq("id", courseId);
-  if (error) flashError(error.message);
-
-  revalidatePath("/admin");
-  revalidatePath("/score");
-  revalidatePath("/duos");
-  revalidatePath("/money");
-  flash("Course removed");
 }
 
 export async function upsertCourseTee(formData: FormData) {
@@ -697,4 +543,220 @@ export async function setSeasonTrophies(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/champions");
   flash("Champions wall updated");
+}
+
+// ---------------------------------------------------------------------------
+// Brief 32 — Teams (North Hedges / South Hedges are seeded structural rows: no create, rename
+// or delete. Captain and roster are data entered here, never hardcoded.)
+// ---------------------------------------------------------------------------
+
+export async function setTeamCaptain(formData: FormData) {
+  await requireAdmin();
+  const teamId = String(formData.get("teamId"));
+  const captainPlayerId = String(formData.get("captainPlayerId") ?? "") || null;
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("teams")
+    .update({ captain_player_id: captainPlayerId })
+    .eq("id", teamId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  flash("Captain saved");
+}
+
+// ---------------------------------------------------------------------------
+// Brief 32 — Courses
+// ---------------------------------------------------------------------------
+
+export async function deleteCourse(formData: FormData) {
+  await requireAdmin();
+  const courseId = String(formData.get("courseId"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("courses").delete().eq("id", courseId);
+  if (error) {
+    flashDeleteError(error, "This course is used by a round — switch or remove the round first.");
+  }
+
+  revalidatePath("/admin");
+  flash("Course removed");
+}
+
+// ---------------------------------------------------------------------------
+// Brief 32 — Rounds. Seeded (Saturday = 1, Sunday = 2); admin edits course, active tee, and the
+// raw tee-time fields. Per-group times are derived (first tee + (slot - 1) x interval), never stored.
+// ---------------------------------------------------------------------------
+
+/** Sunday's Purple <-> White switch. Display-only by construction: it only changes which tee's
+ *  yardage and rating/slope are shown — scoring is gross and both Saguaro tees share pars. */
+export async function setRoundTee(formData: FormData) {
+  await requireAdmin();
+  const roundId = String(formData.get("roundId"));
+  const teeId = String(formData.get("teeId"));
+
+  const supabase = createAdminClient();
+  const [{ data: round }, { data: tee }] = await Promise.all([
+    supabase.from("rounds").select("course_id").eq("id", roundId).maybeSingle(),
+    supabase.from("course_tees").select("course_id, tee_name").eq("id", teeId).maybeSingle(),
+  ]);
+  if (!round || !tee) flashError("Round or tee not found");
+  if (round.course_id !== tee.course_id) flashError("That tee belongs to a different course");
+
+  const { error } = await supabase.from("rounds").update({ default_tee_id: teeId }).eq("id", roundId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  flash(`Active tee set to ${tee.tee_name}`);
+}
+
+export async function updateRound(formData: FormData) {
+  await requireAdmin();
+  const roundId = String(formData.get("roundId"));
+  const courseId = String(formData.get("courseId") ?? "");
+  const teeId = String(formData.get("teeId") ?? "") || null;
+  const firstTeeRaw = String(formData.get("firstTeeTime") ?? "").trim();
+  const intervalRaw = Number(formData.get("groupIntervalMinutes"));
+  const noteRaw = String(formData.get("teeTimeNote") ?? "").trim();
+
+  if (!courseId) flashError("Course is required");
+  if (!Number.isInteger(intervalRaw) || intervalRaw < 1 || intervalRaw > 60) {
+    flashError("Group interval must be a whole number of minutes from 1 to 60");
+  }
+
+  const supabase = createAdminClient();
+  if (teeId) {
+    const { data: tee } = await supabase.from("course_tees").select("course_id").eq("id", teeId).maybeSingle();
+    if (!tee || tee.course_id !== courseId) flashError("That tee doesn't belong to the chosen course");
+  }
+
+  const { error } = await supabase
+    .from("rounds")
+    .update({
+      course_id: courseId,
+      default_tee_id: teeId,
+      // Arizona-anchored (lib/timezone.ts): the stored value is the correct UTC instant no matter
+      // where Chris is typing it from.
+      first_tee_time: firstTeeRaw === "" ? null : arizonaLocalToUtcIso(firstTeeRaw),
+      group_interval_minutes: intervalRaw,
+      tee_time_note: noteRaw === "" ? null : noteRaw,
+    })
+    .eq("id", roundId);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/schedule");
+  flash("Round saved");
+}
+
+export async function deleteRound(formData: FormData) {
+  await requireAdmin();
+  const roundId = String(formData.get("roundId"));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("rounds").delete().eq("id", roundId);
+  if (error) {
+    flashDeleteError(error, "This round has duos or scores — remove them first (scores: Corrections).");
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/schedule");
+  flash("Round removed");
+}
+
+// ---------------------------------------------------------------------------
+// Brief 32 — Duos (the stopgap pairing form, until the Pairings Night board exists; afterwards
+// the commissioner's override). A match is derived from two duos sharing round + match_slot.
+// ---------------------------------------------------------------------------
+
+async function loadDuoValidationContext() {
+  const supabase = createAdminClient();
+  const [{ data: duos }, { data: members }] = await Promise.all([
+    supabase.from("duos").select("id, round_id, team_id, player_1_id, player_2_id, match_slot"),
+    supabase.from("team_members").select("team_id, player_id"),
+  ]);
+  const existingDuos: ExistingDuo[] = (duos ?? []).map((d) => ({
+    id: d.id,
+    roundId: d.round_id,
+    teamId: d.team_id,
+    player1Id: d.player_1_id,
+    player2Id: d.player_2_id,
+    matchSlot: d.match_slot,
+  }));
+  const rosterByTeam: Record<string, string[]> = {};
+  for (const m of members ?? []) (rosterByTeam[m.team_id] ??= []).push(m.player_id);
+  return { existingDuos, rosterByTeam };
+}
+
+function readDuoForm(formData: FormData) {
+  return {
+    roundId: String(formData.get("roundId") ?? ""),
+    teamId: String(formData.get("teamId") ?? ""),
+    player1Id: String(formData.get("player1Id") ?? ""),
+    player2Id: String(formData.get("player2Id") ?? "") || null,
+    matchSlot: Number(formData.get("matchSlot")),
+  };
+}
+
+export async function createDuo(formData: FormData) {
+  await requireAdmin();
+  const input = readDuoForm(formData);
+  if (!input.roundId || !input.teamId) flashError("Round and team are required");
+
+  const result = validateDuo(input, await loadDuoValidationContext());
+  if (result.errors.length > 0) flashError(result.errors.join(" "));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("duos").insert({
+    round_id: input.roundId,
+    team_id: input.teamId,
+    player_1_id: input.player1Id,
+    player_2_id: input.player2Id,
+    match_slot: input.matchSlot,
+  });
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  flash(result.shortHanded ? "Duo created (short-handed)" : "Duo created");
+}
+
+export async function updateDuo(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+  const input = { ...readDuoForm(formData), id };
+
+  const result = validateDuo(input, await loadDuoValidationContext());
+  if (result.errors.length > 0) flashError(result.errors.join(" "));
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("duos")
+    .update({ player_1_id: input.player1Id, player_2_id: input.player2Id, match_slot: input.matchSlot })
+    .eq("id", id);
+  if (error) flashError(error.message);
+
+  revalidatePath("/admin");
+  flash(result.shortHanded ? "Duo saved (short-handed)" : "Duo saved");
+}
+
+const DUO_HAS_SCORES = "This duo has scores — remove them in Corrections first.";
+
+export async function deleteDuo(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id"));
+
+  const supabase = createAdminClient();
+  // Friendly pre-check; the ON DELETE RESTRICT FK (0026) is the real enforcement and is caught below.
+  const [{ count: scores }, { count: mulligans }] = await Promise.all([
+    supabase.from("hole_scores").select("id", { count: "exact", head: true }).eq("duo_id", id),
+    supabase.from("reverse_mulligans").select("id", { count: "exact", head: true }).eq("duo_id", id),
+  ]);
+  if ((scores ?? 0) > 0 || (mulligans ?? 0) > 0) flashError(DUO_HAS_SCORES);
+
+  const { error } = await supabase.from("duos").delete().eq("id", id);
+  if (error) flashDeleteError(error, DUO_HAS_SCORES);
+
+  revalidatePath("/admin");
+  flash("Duo deleted");
 }

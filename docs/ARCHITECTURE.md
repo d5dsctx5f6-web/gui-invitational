@@ -40,10 +40,13 @@ chip_off_winner_team_id — the coin flip is stored as one raw fact, Friday's de
 order and Sunday's reversal are both derived from it, never independently stored) · `players`
 (name, ghin_or_trip_index) · `teams` (season, name — fixed to **North Hedges**/**South
 Hedges**, structural not admin-editable text, captain) / `team_members` (team, player —
-count-agnostic, no forced-8 CHECK) · `rounds` (date, course_id, tee — no `format` column
-anymore; one format now, day identity is `date` itself) · `courses` (rating, slope, par,
-stroke_index[18] per tee — display-only, feeds course handicap as captain intel, never
-scoring) · `duos` (round, team, player_1, player_2, match_slot 1-4, is_forced,
+count-agnostic, no forced-8 CHECK) · `rounds` (round_number — Saturday 1, Sunday 2, unique per
+season, orders and labels rounds; date; course_id; default_tee_id — the active tee, admin-switchable
+and display-only; first_tee_time + group_interval_minutes + tee_time_note — raw tee-time storage,
+per-group times are derived as first_tee_time + (match_slot − 1) × interval and never stored; no
+`format` column, one format now) · `courses` (name, is_active — hides retired test courses from the
+admin picker) / `course_tees` (one row per tee: rating, slope, par, stroke_index[18], par_by_hole[18],
+yardage_by_hole[18] — display-only except par_by_hole, which feeds the mercy cap) · `duos` (round, team, player_1, player_2, match_slot 1-4, is_forced,
 declared_by_captain_id — round-scoped, not season-scoped, since duos aren't fixed across the
 weekend; no separate `matches` table, a match is two duos sharing a round + slot) ·
 `hole_scores` (duo, round, hole, strokes — raw and uncapped, the double-bogey mercy cap is
@@ -72,3 +75,9 @@ Night board); every mutation pushes to all phones (~1s).
 - **Backups:** a scheduled GitHub Actions workflow (free) runs a nightly `pg_dump` against Supabase and stores the encrypted dump in a private backups repo. The free tier has no automated backups of its own, so this is not optional. Run one restore drill before Freeze.
 - **Uptime:** a free external monitor (e.g., UptimeRobot) pings the production URL and alerts by email — most valuable during trip week.
 - **Roster indexes:** collected by Chris the week of the trip and entered manually in admin — sixteen values, minutes of work.
+
+**Brief 32 (`0026`/`0027`) — delete safety.** `hole_scores` and `reverse_mulligans` (by `duo_id` and
+`round_id`), `duos` (by `team_id` and `round_id`) and `rounds.course_id` are `ON DELETE RESTRICT`: nothing
+that has scores can be deleted by accident, and the database enforces it, not just the app. Admin delete
+actions catch the FK violation (SQLSTATE 23503) and show a plain message. All trip timestamps are stored
+UTC and rendered in `America/Phoenix` (see `lib/timezone.ts`).

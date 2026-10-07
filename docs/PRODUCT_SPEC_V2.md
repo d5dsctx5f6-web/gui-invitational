@@ -59,6 +59,9 @@ Runs twice per trip: **Friday night** (sets Saturday's four matches) and **Satur
 - **One-tap bet presets:** a short menu of the trip's standing bets so logging one is a tap and a name, not typing terms from scratch. Final preset list is a ledger-brief decision, not a spec decision.
 - Nothing else. No skins, no cup pot. Running ledger per player; **one settle-up number per man** at trip's end. The app tracks money; it never moves money.
 
+### Paper scorecards
+> **Paper scorecards.** Every foursome carries a printed card and marks it each hole. The app is canonical for live scoring and standings. At the end of the round, both duos sign the card. If the signed card and the app disagree, the commissioner reconciles to the signed card through admin.
+
 ---
 
 ## 3. Beyond scoring

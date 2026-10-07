@@ -2,31 +2,25 @@ import {
   addTeamMember,
   adminLogin,
   adminLogout,
-  correctHoleScore,
   createCourse,
-  createRound,
+  createDuo,
   createScheduleItem,
-  createTeam,
   deleteChallengeBet,
   deleteCourse,
-  deleteMatch,
+  deleteDuo,
   deleteRound,
   deleteScheduleItem,
-  deleteTeam,
   reassignChallengeBetWinner,
-  removeReverseMulligan,
-  removeSkinsEntry,
   removeTeamMember,
-  resetDuoSubmission,
   resetPlayerPin,
-  setDuoSubmission,
+  setRoundTee,
   setSeasonTrophies,
-  setSkinsBuyIn,
+  setTeamCaptain,
+  updateDuo,
   updatePlayerIndex,
+  updateRound,
   updateScheduleItem,
-  updateTeam,
   upsertCourseTee,
-  upsertMatch,
   voidChallengeBet,
 } from "./actions";
 import Link from "next/link";
@@ -36,7 +30,8 @@ import styles from "./admin.module.css";
 import pageStyles from "../page.module.css";
 import { isAdminAuthed } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
-import { utcIsoToArizonaDatetimeLocal } from "@/lib/timezone";
+import { formatArizonaTime, utcIsoToArizonaDatetimeLocal } from "@/lib/timezone";
+import { deriveMatches, groupTeeTimeIso, isShortHanded, maxScoreByHole } from "@/engine/src";
 
 export const dynamic = "force-dynamic";
 
@@ -57,18 +52,12 @@ interface TeamMember {
 interface Round {
   id: string;
   date: string;
-  format: string;
+  round_number: number | null;
   course_id: string;
   default_tee_id: string | null;
-  skins_buy_in: number | null;
-}
-interface Match {
-  id: string;
-  round_id: string;
-  team_a_id: string;
-  team_b_id: string;
-  slot: string;
-  tee_time: string | null;
+  first_tee_time: string | null;
+  group_interval_minutes: number;
+  tee_time_note: string | null;
 }
 interface Course {
   id: string;
@@ -85,16 +74,13 @@ interface CourseTee {
   par_by_hole: number[] | null;
   yardage_by_hole: number[] | null;
 }
-interface HoleScoreRow {
+interface DuoRow {
   id: string;
-  player_id: string;
   round_id: string;
-  hole: number;
-  strokes: number;
-  match_strokes: number | null;
-  breakfast_ball: boolean;
-  mulligan: boolean;
-  mercy_called: boolean;
+  team_id: string;
+  player_1_id: string;
+  player_2_id: string | null;
+  match_slot: number;
 }
 interface ChallengeBet {
   id: string;
@@ -120,31 +106,10 @@ interface ScheduleItem {
   starts_at: string | null;
   notes: string | null;
 }
-interface ReverseMulligan {
-  id: string;
-  team_id: string;
-  round_id: string;
-  hole: number;
-  victim_player_id: string;
-  original_holed_score: number | null;
-}
-interface SkinsEntry {
-  id: string;
-  player_id: string;
-  round_id: string;
-}
-interface DuoSubmissionRow {
-  id: string;
-  round_id: string;
-  team_id: string;
-  captain_player_id: string;
-  duo_a_player_1: string;
-  duo_a_player_2: string | null;
-  duo_b_player_1: string | null;
-  duo_b_player_2: string | null;
-  committed_at: string | null;
-}
 
+// Brief 32: rebuilt against the v2 schema. Dead v1 sections (Corrections, Reverse mulligans, Skins,
+// Duo submissions, the old Rounds & matchups) are intentionally not rendered — Corrections returns
+// in Brief 33 alongside the scorecard.
 async function loadAdminData() {
   const supabase = await createClient();
   const [
@@ -152,175 +117,89 @@ async function loadAdminData() {
     teams,
     teamMembers,
     rounds,
-    matches,
     courses,
     courseTees,
+    duos,
+    holeScoreDuoIds,
+    mulliganDuoIds,
     challengeBets,
     seasonsCore,
     scheduleItems,
-    reverseMulligans,
-    skinsEntries,
-    holeScoreRoundIds,
-    duoSubmissions,
   ] = await Promise.all([
     supabase.from("players").select("id, name, index").order("name"),
     supabase.from("teams").select("id, name, captain_player_id").order("name"),
     supabase.from("team_members").select("team_id, player_id"),
-    supabase.from("rounds").select("id, date, format, course_id, default_tee_id").order("date"),
-    supabase.from("matches").select("id, round_id, team_a_id, team_b_id, slot"),
-    supabase.from("courses").select("id, name").order("name"),
+    supabase
+      .from("rounds")
+      .select("id, date, round_number, course_id, default_tee_id, first_tee_time, group_interval_minutes, tee_time_note")
+      .order("round_number", { ascending: true, nullsFirst: false })
+      .order("date"),
+    supabase.from("courses").select("id, name").eq("is_active", true).order("name"),
     supabase
       .from("course_tees")
-      .select("id, course_id, tee_name, rating, slope, par, stroke_index, par_by_hole, yardage_by_hole"),
+      .select("id, course_id, tee_name, rating, slope, par, stroke_index, par_by_hole, yardage_by_hole")
+      .order("tee_name"),
+    supabase.from("duos").select("id, round_id, team_id, player_1_id, player_2_id, match_slot").order("match_slot"),
+    // Lightweight FK-only fetches so a duo with scores shows as locked rather than offering a delete.
+    supabase.from("hole_scores").select("duo_id"),
+    supabase.from("reverse_mulligans").select("duo_id"),
     supabase
       .from("challenge_bets")
       .select("id, proposer_id, acceptor_id, terms, stake, status, winner_player_id"),
-    supabase.from("seasons").select("id, year, name").order("year", { ascending: false }),
+    supabase.from("seasons").select("id, year, name, cup_winner_team_id").order("year", { ascending: false }),
     supabase
       .from("schedule_items")
       .select("id, season_id, title, starts_at, notes")
       .order("starts_at", { ascending: true, nullsFirst: false }),
-    supabase
-      .from("reverse_mulligans")
-      .select("id, team_id, round_id, hole, victim_player_id, original_holed_score"),
-    supabase.from("skins_entries").select("id, player_id, round_id"),
-    // Lightweight FK-only fetch purely for the delete-confirmation dependency counts below
-    // (Brief 9 Part A) — hole_scores can run into the hundreds but is trivial as just round_id.
-    supabase.from("hole_scores").select("round_id"),
-    // Full rows (Brief 13 Part C: admin's own duo-submissions view/set/reset needs every
-    // field, not just the round_id/team_id used for dependency counts) — still tiny, at most
-    // one row per team per round.
-    supabase
-      .from("duo_submissions")
-      .select(
-        "id, round_id, team_id, captain_player_id, duo_a_player_1, duo_a_player_2, duo_b_player_1, duo_b_player_2, committed_at",
-      ),
   ]);
 
-  // Fetched separately from the core round fields above: if 0019 (skins_buy_in) hasn't run
-  // yet on this database, this query alone fails and falls back to "unset" everywhere —
-  // it must never take down Matchups/Corrections, which only need the fields above.
-  const { data: buyIns } = await supabase.from("rounds").select("id, skins_buy_in");
-  const buyInByRoundId = new Map<string, number | null>(
-    (buyIns ?? []).map((r) => [r.id, r.skins_buy_in]),
-  );
-
-  const roundsList = (rounds.data ?? []).map((r) => ({
-    ...r,
-    skins_buy_in: buyInByRoundId.get(r.id) ?? null,
-  })) as Round[];
-
-  // Same reasoning: tee_time (migration 0023) fetched separately so Matchups still renders
-  // (and every other action on this row still works) on a database that hasn't run it yet.
-  const { data: teeTimes } = await supabase.from("matches").select("id, tee_time");
-  const teeTimeById = new Map<string, string | null>(
-    (teeTimes ?? []).map((t) => [t.id, t.tee_time]),
-  );
-  const matchesList = (matches.data ?? []).map((m) => ({
-    ...m,
-    tee_time: teeTimeById.get(m.id) ?? null,
-  })) as Match[];
-
-  // Same reasoning as skins_buy_in above: fetched separately so a database that hasn't run
-  // 0020 (the trophy columns) yet still shows the rest of the season list intact.
+  // Orphaned v1 trophy columns (Low Man / Skins King): fetched separately so the Champions wall
+  // still renders if they're ever dropped.
   const { data: trophies } = await supabase
     .from("seasons")
-    .select("id, cup_winner_team_id, individual_champion_player_id, skins_king_player_id");
-  const trophiesBySeasonId = new Map(
-    (trophies ?? []).map((t) => [
-      t.id,
-      {
-        cup_winner_team_id: t.cup_winner_team_id,
-        individual_champion_player_id: t.individual_champion_player_id,
-        skins_king_player_id: t.skins_king_player_id,
-      },
-    ]),
-  );
+    .select("id, individual_champion_player_id, skins_king_player_id");
+  const trophiesBySeason = new Map((trophies ?? []).map((t) => [t.id, t]));
   const seasonsList = (seasonsCore.data ?? []).map((s) => ({
     ...s,
-    cup_winner_team_id: trophiesBySeasonId.get(s.id)?.cup_winner_team_id ?? null,
-    individual_champion_player_id:
-      trophiesBySeasonId.get(s.id)?.individual_champion_player_id ?? null,
-    skins_king_player_id: trophiesBySeasonId.get(s.id)?.skins_king_player_id ?? null,
+    individual_champion_player_id: trophiesBySeason.get(s.id)?.individual_champion_player_id ?? null,
+    skins_king_player_id: trophiesBySeason.get(s.id)?.skins_king_player_id ?? null,
   })) as Season[];
 
-  // Dependency counts for the delete-confirmation warnings (Brief 9 Part A). All built from
-  // already-fetched lightweight FK lists — no per-row queries.
-  function countBy<T>(rows: T[], key: (row: T) => string): Map<string, number> {
+  function countBy(rows: { duo_id: string }[]): Map<string, number> {
     const map = new Map<string, number>();
-    for (const row of rows) {
-      const k = key(row);
-      map.set(k, (map.get(k) ?? 0) + 1);
-    }
+    for (const r of rows) map.set(r.duo_id, (map.get(r.duo_id) ?? 0) + 1);
     return map;
   }
 
-  const matchesByRound = countBy(matchesList, (m) => m.round_id);
-  const holeScoresByRound = countBy(holeScoreRoundIds.data ?? [], (r) => r.round_id);
-  const duoSubsByRound = countBy(duoSubmissions.data ?? [], (d) => d.round_id);
-  const duoSubsByTeam = countBy(duoSubmissions.data ?? [], (d) => d.team_id);
-  const skinsEntriesByRound = countBy(skinsEntries.data ?? [], (s) => s.round_id);
-  const rmByRound = countBy(reverseMulligans.data ?? [], (r) => r.round_id);
-  const rmByTeam = countBy(reverseMulligans.data ?? [], (r) => r.team_id);
-  const teeSetupsByCourse = countBy(courseTees.data ?? [], (t) => t.course_id);
-  const roundsByCourse = countBy(rounds.data ?? [], (r) => r.course_id);
-  const teamMembersByTeam = countBy(teamMembers.data ?? [], (m) => m.team_id);
-  const matchesByTeam = countBy(
-    matchesList.flatMap((m) => [m.team_a_id, m.team_b_id]),
-    (teamId) => teamId,
-  );
+  const loadErrors = [
+    ["players", players.error],
+    ["teams", teams.error],
+    ["team_members", teamMembers.error],
+    ["rounds", rounds.error],
+    ["courses", courses.error],
+    ["course_tees", courseTees.error],
+    ["duos", duos.error],
+    ["hole_scores", holeScoreDuoIds.error],
+    ["reverse_mulligans", mulliganDuoIds.error],
+  ]
+    .filter(([, e]) => e)
+    .map(([name, e]) => `${name}: ${(e as { message: string }).message}`);
 
   return {
+    loadErrors,
     players: (players.data ?? []) as Player[],
     teams: (teams.data ?? []) as Team[],
     teamMembers: (teamMembers.data ?? []) as TeamMember[],
-    rounds: roundsList,
-    matches: matchesList,
+    rounds: (rounds.data ?? []) as Round[],
     courses: (courses.data ?? []) as Course[],
     courseTees: (courseTees.data ?? []) as CourseTee[],
+    duos: (duos.data ?? []) as DuoRow[],
+    scoresByDuo: countBy(holeScoreDuoIds.data ?? []),
+    mulligansByDuo: countBy(mulliganDuoIds.data ?? []),
     challengeBets: (challengeBets.data ?? []) as ChallengeBet[],
     seasons: seasonsList,
     scheduleItems: (scheduleItems.data ?? []) as ScheduleItem[],
-    reverseMulligans: (reverseMulligans.data ?? []) as ReverseMulligan[],
-    skinsEntries: (skinsEntries.data ?? []) as SkinsEntry[],
-    duoSubmissions: (duoSubmissions.data ?? []) as DuoSubmissionRow[],
-    dependencyCounts: {
-      matchesByRound,
-      holeScoresByRound,
-      duoSubsByRound,
-      duoSubsByTeam,
-      skinsEntriesByRound,
-      rmByRound,
-      rmByTeam,
-      teeSetupsByCourse,
-      roundsByCourse,
-      teamMembersByTeam,
-      matchesByTeam,
-    },
   };
-}
-
-async function loadHoleScores(roundId: string | undefined) {
-  if (!roundId) return [] as HoleScoreRow[];
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("hole_scores")
-    .select("id, player_id, round_id, hole, strokes, match_strokes, breakfast_ball, mulligan")
-    .eq("round_id", roundId)
-    .order("hole");
-  // Brief 29: mercy_called (migration 0024) fetched separately so Corrections still renders on
-  // a database that hasn't run it yet — same decoupled-fetch pattern used throughout this file.
-  const { data: mercyRows } = await supabase
-    .from("hole_scores")
-    .select("id, mercy_called")
-    .eq("round_id", roundId);
-  const mercyById = new Map<string, boolean>(
-    (mercyRows ?? []).map((r) => [r.id, r.mercy_called]),
-  );
-  return (data ?? []).map((row) => ({
-    ...row,
-    mercy_called: mercyById.get(row.id) ?? false,
-  })) as HoleScoreRow[];
 }
 
 export default async function AdminPage({
@@ -356,112 +235,42 @@ export default async function AdminPage({
   }
 
   const {
+    loadErrors,
     players,
     teams,
     teamMembers,
     rounds,
-    matches,
     courses,
     courseTees,
+    duos,
+    scoresByDuo,
+    mulligansByDuo,
     challengeBets,
     seasons,
     scheduleItems,
-    reverseMulligans,
-    skinsEntries,
-    duoSubmissions,
-    dependencyCounts: dc,
   } = await loadAdminData();
-  const selectedRoundId = params.round ?? rounds[0]?.id;
-  const holeScores = await loadHoleScores(selectedRoundId);
 
-  // Brief 20: Corrections drill-down — round is resolved above (shared with Duo submissions),
-  // match and hole are Corrections-specific query params so they don't collide with `round`.
-  const roundMatches = matches.filter((m) => m.round_id === selectedRoundId);
-  const selectedMatchId =
-    params.cmatch && roundMatches.some((m) => m.id === params.cmatch)
-      ? params.cmatch
-      : roundMatches[0]?.id;
-  const selectedMatch = roundMatches.find((m) => m.id === selectedMatchId);
-  const selectedHole = Math.min(18, Math.max(1, Number(params.chole) || 1));
-
-  // Same duo-slot-resolution insight as /score's routing (Brief 10) and the leaderboard
-  // (Brief 14): a team pairing is two match rows sharing team IDs, disambiguated only by
-  // duo_submissions. Falls back to the full team rosters (both sides) when no submission
-  // exists yet for this round/team, so an already-posted score never becomes unreachable
-  // just because a duo submission is missing or was reset.
-  function matchPlayerIds(match: Match): string[] {
-    const subA = duoSubmissions.find(
-      (d) => d.round_id === match.round_id && d.team_id === match.team_a_id,
-    );
-    const subB = duoSubmissions.find(
-      (d) => d.round_id === match.round_id && d.team_id === match.team_b_id,
-    );
-    const resolved = [...duoSlotPlayerIds(subA, match.slot), ...duoSlotPlayerIds(subB, match.slot)];
-    if (resolved.length > 0) return resolved;
-    return teamMembers
-      .filter((m) => m.team_id === match.team_a_id || m.team_id === match.team_b_id)
-      .map((m) => m.player_id);
-  }
-
-  // Safety net (verification requirement: nothing reachable in the old flat list becomes
-  // unreachable here) — Brief 15 hit exactly this shape of bug once already: stale
-  // hole_scores rows for players not actually part of the round's current match structure.
-  // Any row that doesn't resolve to a player in any of this round's matches still surfaces,
-  // in the same flat form Corrections used before this brief.
-  const matchedPlayerIdsThisRound = new Set(roundMatches.flatMap((m) => matchPlayerIds(m)));
-  const unmatchedHoleScores = holeScores.filter((r) => !matchedPlayerIdsThisRound.has(r.player_id));
-
+  const north = teams.find((t) => t.name === "North Hedges");
+  const south = teams.find((t) => t.name === "South Hedges");
   const playerName = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
-  const courseNameForRound = (round: Round) => courseName(courses, round.course_id);
-  const roundLabel = (round: Round) => `${courseNameForRound(round)} — ${formatName(round.format)}`;
 
-  // Brief 26: this re-opens the edit form showing the Arizona time Chris originally set, not a
-  // value shifted by whatever timezone this server process happens to be running in.
+  // Re-opens edit forms showing the Arizona time Chris originally set, not a value shifted by
+  // whatever timezone this server process happens to be in (Brief 26).
   function toDatetimeLocal(value: string | null): string {
-    if (!value) return "";
-    return utcIsoToArizonaDatetimeLocal(value);
+    return value ? utcIsoToArizonaDatetimeLocal(value) : "";
   }
 
   function courseDeleteWarning(courseId: string, name: string): string {
     return buildDeleteWarning(`"${name}"`, {
-      teeSetups: dc.teeSetupsByCourse.get(courseId) ?? 0,
-      rounds: dc.roundsByCourse.get(courseId) ?? 0,
-      matches: (rounds.filter((r) => r.course_id === courseId)).reduce(
-        (sum, r) => sum + (dc.matchesByRound.get(r.id) ?? 0),
-        0,
-      ),
-      holeScores: rounds
-        .filter((r) => r.course_id === courseId)
-        .reduce((sum, r) => sum + (dc.holeScoresByRound.get(r.id) ?? 0), 0),
-      duoSubmissions: rounds
-        .filter((r) => r.course_id === courseId)
-        .reduce((sum, r) => sum + (dc.duoSubsByRound.get(r.id) ?? 0), 0),
-      skinsEntries: rounds
-        .filter((r) => r.course_id === courseId)
-        .reduce((sum, r) => sum + (dc.skinsEntriesByRound.get(r.id) ?? 0), 0),
-      reverseMulligans: rounds
-        .filter((r) => r.course_id === courseId)
-        .reduce((sum, r) => sum + (dc.rmByRound.get(r.id) ?? 0), 0),
+      teeSetups: courseTees.filter((t) => t.course_id === courseId).length,
     });
   }
 
   function roundDeleteWarning(round: Round): string {
-    return buildDeleteWarning(`"${roundLabel(round)}"`, {
-      matches: dc.matchesByRound.get(round.id) ?? 0,
-      holeScores: dc.holeScoresByRound.get(round.id) ?? 0,
-      duoSubmissions: dc.duoSubsByRound.get(round.id) ?? 0,
-      skinsEntries: dc.skinsEntriesByRound.get(round.id) ?? 0,
-      reverseMulligans: dc.rmByRound.get(round.id) ?? 0,
-    });
-  }
-
-  function teamDeleteWarning(teamId: string, name: string): string {
-    return buildDeleteWarning(`"${name}"`, {
-      teamMembers: dc.teamMembersByTeam.get(teamId) ?? 0,
-      matches: dc.matchesByTeam.get(teamId) ?? 0,
-      duoSubmissions: dc.duoSubsByTeam.get(teamId) ?? 0,
-      reverseMulligans: dc.rmByTeam.get(teamId) ?? 0,
-    });
+    const roundDuos = duos.filter((d) => d.round_id === round.id);
+    const scores = roundDuos.reduce((n, d) => n + (scoresByDuo.get(d.id) ?? 0), 0);
+    if (roundDuos.length === 0) return `Delete ${roundLabel(round)}? This cannot be undone.`;
+    return `${roundLabel(round)} has ${roundDuos.length} ${roundDuos.length === 1 ? "duo" : "duos"} and ${scores} hole ${scores === 1 ? "score" : "scores"}. A round with duos or scores can't be deleted — remove them first. Try anyway?`;
   }
 
   return (
@@ -482,19 +291,141 @@ export default async function AdminPage({
 
       {params.msg && <div className={styles.flashOk}>{params.msg}</div>}
       {params.err && <div className={styles.flashErr}>{params.err}</div>}
+      {loadErrors.length > 0 && (
+        <div className={styles.flashErr}>
+          Some data failed to load — has migration 0026/0027 been run? {loadErrors.join(" · ")}
+        </div>
+      )}
+
+      {/* ---------------- Rounds ---------------- */}
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}>Rounds</div>
+        {rounds.length === 0 && <div className={styles.hint}>No rounds yet — run migration 0027.</div>}
+        {rounds.map((round) => {
+          const tees = courseTees.filter((t) => t.course_id === round.course_id);
+          const activeTee = courseTees.find((t) => t.id === round.default_tee_id) ?? null;
+          return (
+            <div key={round.id} className={styles.roundCard}>
+              <div className={styles.roundCardHead}>
+                <b style={{ color: "var(--cream)" }}>{roundLabel(round)}</b>
+                <span className={styles.hint}>{courseName(courses, round.course_id)}</span>
+              </div>
+
+              <div className={styles.hint}>
+                Active tee:{" "}
+                <b style={{ color: "var(--gold)" }}>{activeTee ? activeTee.tee_name : "none set"}</b>
+                {activeTee && ` · ${totalYards(activeTee)} yds · ${activeTee.rating}/${activeTee.slope}`}
+              </div>
+              {tees.length > 1 && (
+                <div className={styles.inlineForm}>
+                  {tees.map((t) => (
+                    <form key={t.id} action={setRoundTee}>
+                      <input type="hidden" name="roundId" value={round.id} />
+                      <input type="hidden" name="teeId" value={t.id} />
+                      <button className={t.id === round.default_tee_id ? styles.btn : styles.btnGhost} type="submit">
+                        {t.tee_name}
+                      </button>
+                    </form>
+                  ))}
+                </div>
+              )}
+              {tees.length > 1 && (
+                <div className={styles.hint}>
+                  Switching tees only changes displayed yardage and course-handicap intel. Scoring is gross
+                  and both tees share pars, so nothing competitive changes.
+                </div>
+              )}
+
+              <div className={styles.hint}>
+                Tee times (Arizona time):{" "}
+                {round.first_tee_time
+                  ? [1, 2, 3, 4]
+                      .map(
+                        (k) =>
+                          `G${k} ${formatArizonaTime(groupTeeTimeIso(round.first_tee_time!, round.group_interval_minutes, k))}`,
+                      )
+                      .join(" · ")
+                  : "not set"}
+              </div>
+              {round.tee_time_note && <div className={styles.badgeWarn}>{round.tee_time_note}</div>}
+
+              <form action={updateRound} className={styles.inlineForm}>
+                <input type="hidden" name="roundId" value={round.id} />
+                <select className={styles.select} name="courseId" defaultValue={round.course_id}>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <select className={styles.select} name="teeId" defaultValue={round.default_tee_id ?? ""}>
+                  <option value="">No tee</option>
+                  {courseTees.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {courseName(courses, t.course_id)} — {t.tee_name}
+                    </option>
+                  ))}
+                </select>
+                <label className={styles.checkboxLabel}>
+                  First tee
+                  <input
+                    className={styles.input}
+                    type="datetime-local"
+                    name="firstTeeTime"
+                    defaultValue={toDatetimeLocal(round.first_tee_time)}
+                  />
+                </label>
+                <label className={styles.checkboxLabel}>
+                  Interval (min)
+                  <input
+                    className={styles.input}
+                    type="number"
+                    name="groupIntervalMinutes"
+                    min={1}
+                    max={60}
+                    defaultValue={round.group_interval_minutes}
+                    style={{ width: 70 }}
+                  />
+                </label>
+                <input
+                  className={styles.input}
+                  name="teeTimeNote"
+                  placeholder="Note (blank = confirmed)"
+                  defaultValue={round.tee_time_note ?? ""}
+                />
+                <button className={styles.btn} type="submit">
+                  Save round
+                </button>
+              </form>
+              <form action={deleteRound}>
+                <input type="hidden" name="roundId" value={round.id} />
+                <ConfirmDeleteButton className={styles.btnDanger} confirmMessage={roundDeleteWarning(round)}>
+                  Delete round
+                </ConfirmDeleteButton>
+              </form>
+            </div>
+          );
+        })}
+      </section>
 
       {/* ---------------- Teams ---------------- */}
       <section className={styles.section}>
         <div className={styles.sectionTitle}>Teams</div>
+        <div className={styles.hint}>
+          North Hedges and South Hedges are fixed. Set each year&apos;s captain and roster here.
+        </div>
+        {teams.length === 0 && <div className={styles.hint}>No teams yet — run migration 0027.</div>}
         {teams.map((team) => {
           const members = teamMembers.filter((m) => m.team_id === team.id);
           const memberIds = new Set(members.map((m) => m.player_id));
           const available = players.filter((p) => !memberIds.has(p.id));
           return (
             <div key={team.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
-              <form action={updateTeam} className={styles.inlineForm}>
+              <div className={styles.title} style={{ fontSize: 18 }}>
+                {team.name}
+              </div>
+              <form action={setTeamCaptain} className={styles.inlineForm}>
                 <input type="hidden" name="teamId" value={team.id} />
-                <input className={styles.input} name="name" defaultValue={team.name} />
                 <select className={styles.select} name="captainPlayerId" defaultValue={team.captain_player_id ?? ""}>
                   <option value="">No captain</option>
                   {players.map((p) => (
@@ -504,24 +435,11 @@ export default async function AdminPage({
                   ))}
                 </select>
                 <button className={styles.btn} type="submit">
-                  Save
+                  Set captain
                 </button>
               </form>
-              <form action={deleteTeam}>
-                <input type="hidden" name="teamId" value={team.id} />
-                <ConfirmDeleteButton
-                  className={styles.btnDanger}
-                  confirmMessage={teamDeleteWarning(team.id, team.name)}
-                >
-                  Delete team
-                </ConfirmDeleteButton>
-              </form>
               <div className={styles.hint}>
-                {members.length === 0
-                  ? "No members yet"
-                  : members
-                      .map((m) => playerName(m.player_id))
-                      .join(", ")}
+                {members.length === 0 ? "No members yet" : `${members.length} on roster`}
               </div>
               <div className={styles.inlineForm}>
                 {members.map((m) => (
@@ -555,270 +473,210 @@ export default async function AdminPage({
             </div>
           );
         })}
-        <form action={createTeam} className={styles.inlineForm}>
-          <input className={styles.input} name="name" placeholder="New team name" />
-          <button className={styles.btn} type="submit">
-            Create team
-          </button>
-        </form>
       </section>
 
-      {/* ---------------- Rounds + Matchups (Brief 15 Part D: grouped per round) ---------------- */}
+      {/* ---------------- Duos per round (stopgap pairing form) ---------------- */}
       <section className={styles.section}>
-        <div className={styles.sectionTitle}>Rounds &amp; matchups</div>
-        {rounds.length > 2 && (
-          <div className={styles.countNote}>
-            {rounds.length} rounds exist — SPEC calls for 2 competitive rounds per trip. Clear out
-            any stray/test rounds below if they don&apos;t belong.
-          </div>
-        )}
-        {rounds.map((round) => {
-          const roundMatches = matches.filter((m) => m.round_id === round.id);
-          return (
-            <div key={round.id} className={styles.roundCard}>
-              <div className={styles.roundCardHead}>
-                <div className={styles.hint}>
-                  <b style={{ color: "var(--cream)" }}>{roundLabel(round)}</b>
-                  <span> · {round.date}</span>
-                </div>
-                <form action={deleteRound}>
-                  <input type="hidden" name="roundId" value={round.id} />
-                  <ConfirmDeleteButton
-                    className={styles.btnDanger}
-                    confirmMessage={roundDeleteWarning(round)}
-                  >
-                    Delete round
-                  </ConfirmDeleteButton>
-                </form>
-              </div>
-              <form action={setSkinsBuyIn} className={styles.inlineForm}>
-                <input type="hidden" name="roundId" value={round.id} />
-                <span className={styles.hint}>Skins buy-in ($):</span>
-                <input
-                  className={styles.input}
-                  type="number"
-                  step="1"
-                  name="skinsBuyIn"
-                  defaultValue={round.skins_buy_in ?? ""}
-                  placeholder="TBD"
-                />
-                <button className={styles.btn} type="submit">
-                  Save
-                </button>
-              </form>
-
-              <div className={styles.matchupsLabel}>Matchups</div>
-              {roundMatches.map((m) => (
-                <div key={m.id} className={styles.inlineForm}>
-                  <form action={upsertMatch} className={styles.inlineForm}>
-                    <input type="hidden" name="matchId" value={m.id} />
-                    <input type="hidden" name="roundId" value={round.id} />
-                    <select className={styles.select} name="teamAId" defaultValue={m.team_a_id}>
-                      {teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                    <span className={styles.hint}>vs</span>
-                    <select className={styles.select} name="teamBId" defaultValue={m.team_b_id}>
-                      {teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select className={styles.select} name="slot" defaultValue={m.slot}>
-                      <option value="A">Slot A</option>
-                      <option value="B">Slot B</option>
-                    </select>
-                    <input
-                      className={styles.input}
-                      type="datetime-local"
-                      name="teeTime"
-                      defaultValue={toDatetimeLocal(m.tee_time)}
-                      title="Tee time"
-                    />
-                    <button className={styles.btn} type="submit">
-                      Save
-                    </button>
-                  </form>
-                  <form action={deleteMatch}>
-                    <input type="hidden" name="matchId" value={m.id} />
-                    <ConfirmDeleteButton
-                      className={styles.btnDanger}
-                      confirmMessage="Remove this matchup? This cannot be undone."
-                    >
-                      Remove
-                    </ConfirmDeleteButton>
-                  </form>
-                </div>
-              ))}
-              <form action={upsertMatch} className={styles.inlineForm}>
-                <input type="hidden" name="roundId" value={round.id} />
-                <select className={styles.select} name="teamAId" defaultValue="">
-                  <option value="" disabled>
-                    Team A
-                  </option>
-                  {teams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                <select className={styles.select} name="teamBId" defaultValue="">
-                  <option value="" disabled>
-                    Team B
-                  </option>
-                  {teams.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                <select className={styles.select} name="slot" defaultValue="A">
-                  <option value="A">Slot A</option>
-                  <option value="B">Slot B</option>
-                </select>
-                <input
-                  className={styles.input}
-                  type="datetime-local"
-                  name="teeTime"
-                  title="Tee time (optional)"
-                />
-                <button className={styles.btn} type="submit">
-                  Add matchup
-                </button>
-              </form>
-            </div>
-          );
-        })}
-
-        <div className={styles.hint}>Add a round:</div>
-        <form action={createRound} className={styles.inlineForm}>
-          <input className={styles.input} type="date" name="date" />
-          <select className={styles.select} name="format" defaultValue="shamble">
-            <option value="shamble">Shamble</option>
-            <option value="four_ball">Four-ball</option>
-          </select>
-          <select className={styles.select} name="courseId" defaultValue="">
-            <option value="" disabled>
-              Course
-            </option>
-            {courses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <select className={styles.select} name="teeId" defaultValue="">
-            <option value="">No default tee</option>
-            {courseTees.map((t) => (
-              <option key={t.id} value={t.id}>
-                {courseName(courses, t.course_id)} — {t.tee_name}
-              </option>
-            ))}
-          </select>
-          <button className={styles.btn} type="submit">
-            Create round
-          </button>
-        </form>
-      </section>
-
-      {/* ---------------- Duo submissions (Brief 13 Part C) ---------------- */}
-      <section className={styles.section}>
-        <div className={styles.sectionTitle}>Duo submissions</div>
+        <div className={styles.sectionTitle}>Duos &amp; matches</div>
         <div className={styles.hint}>
-          Commissioner override — shows and edits both teams&apos; lineups regardless of the
-          blind-until-both-reveal rule captains see on /duos. Intentional, not a bug.
+          Stopgap until the Pairings Night board exists, then the commissioner&apos;s override. A match is a
+          North duo and a South duo sharing a slot. Slots aren&apos;t forced to 4 — a short-handed side just
+          runs fewer.
         </div>
-        <div className={styles.hint}>Round:</div>
-        <RoundPicker rounds={rounds} courses={courses} selected={selectedRoundId} />
-        {!selectedRoundId && <div className={styles.hint}>No rounds yet.</div>}
-        {selectedRoundId &&
-          teams.map((team) => {
-            const roster = teamMembers
-              .filter((m) => m.team_id === team.id)
-              .map((m) => players.find((p) => p.id === m.player_id))
-              .filter((p): p is Player => p !== undefined);
-            const sub = duoSubmissions.find(
-              (d) => d.round_id === selectedRoundId && d.team_id === team.id,
+        {(!north || !south) && <div className={styles.hint}>Both teams must exist first.</div>}
+        {north &&
+          south &&
+          rounds.map((round) => {
+            const roundDuos = duos.filter((d) => d.round_id === round.id);
+            const inDuo = new Set(roundDuos.flatMap((d) => [d.player_1_id, d.player_2_id]));
+            const matches = deriveMatches(
+              roundDuos.map((d) => ({ ...d, teamId: d.team_id, matchSlot: d.match_slot })),
+              north.id,
+              south.id,
             );
+            const duoLabel = (d: DuoRow | null) =>
+              d
+                ? `${playerName(d.player_1_id)}${d.player_2_id ? ` + ${playerName(d.player_2_id)}` : ""}`
+                : "—";
             return (
-              <div
-                key={team.id}
-                className={styles.row}
-                style={{ flexDirection: "column", alignItems: "stretch" }}
-              >
-                <div className={styles.inlineForm} style={{ justifyContent: "space-between" }}>
-                  <div className={styles.hint}>
-                    <b style={{ color: "var(--cream)" }}>{team.name}</b>
-                    {sub ? " · submitted" : " · not yet submitted"}
-                  </div>
-                  {sub && (
-                    <form action={resetDuoSubmission}>
-                      <input type="hidden" name="roundId" value={selectedRoundId} />
-                      <input type="hidden" name="teamId" value={team.id} />
-                      <ConfirmDeleteButton
-                        className={styles.btnDanger}
-                        confirmMessage={`Reset ${team.name}'s duo submission for this round? They'll need to submit again.`}
-                      >
-                        Reset
-                      </ConfirmDeleteButton>
-                    </form>
-                  )}
+              <div key={round.id} className={styles.roundCard}>
+                <div className={styles.roundCardHead}>
+                  <b style={{ color: "var(--cream)" }}>{roundLabel(round)}</b>
+                  <span className={styles.hint}>{matches.length} of 4 slots</span>
                 </div>
-                <form action={setDuoSubmission} className={styles.inlineForm}>
-                  <input type="hidden" name="roundId" value={selectedRoundId} />
-                  <input type="hidden" name="teamId" value={team.id} />
-                  <input
-                    type="hidden"
-                    name="captainPlayerId"
-                    value={sub?.captain_player_id ?? team.captain_player_id ?? ""}
-                  />
-                  <span className={styles.hint}>Duo A:</span>
-                  <select className={styles.select} name="duoAPlayer1" defaultValue={sub?.duo_a_player_1 ?? ""}>
-                    <option value="" disabled>
-                      Player 1
-                    </option>
-                    {roster.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select className={styles.select} name="duoAPlayer2" defaultValue={sub?.duo_a_player_2 ?? ""}>
-                    <option value="">— none —</option>
-                    {roster.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <span className={styles.hint}>Duo B:</span>
-                  <select className={styles.select} name="duoBPlayer1" defaultValue={sub?.duo_b_player_1 ?? ""}>
-                    <option value="">— none —</option>
-                    {roster.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select className={styles.select} name="duoBPlayer2" defaultValue={sub?.duo_b_player_2 ?? ""}>
-                    <option value="">— none —</option>
-                    {roster.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button className={styles.btn} type="submit">
-                    Save lineup
-                  </button>
-                </form>
+
+                {matches.length === 0 && <div className={styles.hint}>No duos yet.</div>}
+                {matches.map((m) => (
+                  <div key={m.matchSlot} className={styles.hint}>
+                    <b style={{ color: "var(--cream)" }}>Slot {m.matchSlot}</b>
+                    {round.first_tee_time &&
+                      ` · ${formatArizonaTime(groupTeeTimeIso(round.first_tee_time, round.group_interval_minutes, m.matchSlot))}`}
+                    {" · "}
+                    {duoLabel(m.north as DuoRow | null)} <b>vs</b> {duoLabel(m.south as DuoRow | null)}
+                    {m.north && isShortHanded({ player2Id: (m.north as DuoRow).player_2_id }) && " ⚠ North short-handed"}
+                    {m.south && isShortHanded({ player2Id: (m.south as DuoRow).player_2_id }) && " ⚠ South short-handed"}
+                  </div>
+                ))}
+
+                {[north, south].map((team) => {
+                  const roster = teamMembers.filter((m) => m.team_id === team.id).map((m) => m.player_id);
+                  const teamDuos = roundDuos.filter((d) => d.team_id === team.id);
+                  const free = roster.filter((id) => !inDuo.has(id));
+                  return (
+                    <div key={team.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className={styles.matchupsLabel}>{team.name}</div>
+                      {teamDuos.map((d) => {
+                        const scores = scoresByDuo.get(d.id) ?? 0;
+                        const mulligans = mulligansByDuo.get(d.id) ?? 0;
+                        const locked = scores > 0 || mulligans > 0;
+                        const options = roster.filter(
+                          (id) => id === d.player_1_id || id === d.player_2_id || !inDuo.has(id),
+                        );
+                        return (
+                          <div key={d.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
+                            {d.player_2_id === null && <span className={styles.badgeWarn}>Short-handed</span>}
+                            <form action={updateDuo} className={styles.inlineForm}>
+                              <input type="hidden" name="id" value={d.id} />
+                              <input type="hidden" name="roundId" value={round.id} />
+                              <input type="hidden" name="teamId" value={team.id} />
+                              <select className={styles.select} name="player1Id" defaultValue={d.player_1_id}>
+                                {options.map((id) => (
+                                  <option key={id} value={id}>
+                                    {playerName(id)}
+                                  </option>
+                                ))}
+                              </select>
+                              <select className={styles.select} name="player2Id" defaultValue={d.player_2_id ?? ""}>
+                                <option value="">— short-handed —</option>
+                                {options.map((id) => (
+                                  <option key={id} value={id}>
+                                    {playerName(id)}
+                                  </option>
+                                ))}
+                              </select>
+                              <select className={styles.select} name="matchSlot" defaultValue={d.match_slot}>
+                                {[1, 2, 3, 4].map((n) => (
+                                  <option key={n} value={n}>
+                                    Slot {n}
+                                  </option>
+                                ))}
+                              </select>
+                              <button className={styles.btn} type="submit">
+                                Save
+                              </button>
+                            </form>
+                            {locked ? (
+                              <div className={styles.hint}>
+                                Has {scores} hole {scores === 1 ? "score" : "scores"}
+                                {mulligans > 0 && ` and ${mulligans} reverse mulligan`} — locked. Remove them in
+                                Corrections first.
+                              </div>
+                            ) : (
+                              <form action={deleteDuo}>
+                                <input type="hidden" name="id" value={d.id} />
+                                <ConfirmDeleteButton
+                                  className={styles.btnDanger}
+                                  confirmMessage={`Delete ${duoLabel(d)}? This cannot be undone.`}
+                                >
+                                  Delete duo
+                                </ConfirmDeleteButton>
+                              </form>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {free.length > 0 ? (
+                        <form action={createDuo} className={styles.inlineForm}>
+                          <input type="hidden" name="roundId" value={round.id} />
+                          <input type="hidden" name="teamId" value={team.id} />
+                          <select className={styles.select} name="player1Id" defaultValue="">
+                            <option value="" disabled>
+                              Player 1…
+                            </option>
+                            {free.map((id) => (
+                              <option key={id} value={id}>
+                                {playerName(id)}
+                              </option>
+                            ))}
+                          </select>
+                          <select className={styles.select} name="player2Id" defaultValue="">
+                            <option value="">Player 2 (blank = short-handed)</option>
+                            {free.map((id) => (
+                              <option key={id} value={id}>
+                                {playerName(id)}
+                              </option>
+                            ))}
+                          </select>
+                          <select className={styles.select} name="matchSlot" defaultValue="1">
+                            {[1, 2, 3, 4].map((n) => (
+                              <option key={n} value={n}>
+                                Slot {n}
+                              </option>
+                            ))}
+                          </select>
+                          <button className={styles.btn} type="submit">
+                            Add {team.name.split(" ")[0]} duo
+                          </button>
+                        </form>
+                      ) : (
+                        <div className={styles.hint}>
+                          {roster.length === 0 ? "Add players to this team first." : "Everyone on this team is already in a duo."}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
+      </section>
+
+      {/* ---------------- Courses & tees ---------------- */}
+      <section className={styles.section}>
+        <div className={styles.sectionTitle}>Courses &amp; tees</div>
+        <div className={styles.countNote}>
+          ⚠ Pars drive the mercy cap (par + 2), so a wrong par silently changes match results. Rating, slope,
+          yardage and stroke index are display-only.
+        </div>
+        {courses.map((course) => (
+          <div key={course.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
+            <div className={styles.inlineForm} style={{ justifyContent: "space-between" }}>
+              <div className={styles.hint}>
+                <b style={{ color: "var(--cream)" }}>{course.name}</b>
+              </div>
+              <form action={deleteCourse}>
+                <input type="hidden" name="courseId" value={course.id} />
+                <ConfirmDeleteButton
+                  className={styles.btnDanger}
+                  confirmMessage={courseDeleteWarning(course.id, course.name)}
+                >
+                  Delete course
+                </ConfirmDeleteButton>
+              </form>
+            </div>
+            {courseTees
+              .filter((t) => t.course_id === course.id)
+              .map((tee) => (
+                <details key={tee.id} className={styles.teeDetails}>
+                  <summary>
+                    <b>{tee.tee_name}</b> · par {tee.par} · {totalYards(tee)} yds · {tee.rating}/{tee.slope}
+                  </summary>
+                  <TeeHoleTable tee={tee} />
+                  <CourseTeeForm courseId={course.id} tee={tee} />
+                </details>
+              ))}
+            <details className={styles.teeDetails}>
+              <summary>+ Add a tee</summary>
+              <CourseTeeForm courseId={course.id} tee={null} />
+            </details>
+          </div>
+        ))}
+        <form action={createCourse} className={styles.inlineForm}>
+          <input className={styles.input} name="name" placeholder="New course name" />
+          <button className={styles.btn} type="submit">
+            Create course
+          </button>
+        </form>
       </section>
 
       {/* ---------------- Indexes ---------------- */}
@@ -850,142 +708,6 @@ export default async function AdminPage({
             </span>
           </div>
         ))}
-      </section>
-
-      {/* ---------------- Course setups ---------------- */}
-      <section className={styles.section}>
-        <div className={styles.sectionTitle}>Course setups</div>
-        {courses.map((course) => (
-          <div key={course.id} className={styles.row} style={{ flexDirection: "column", alignItems: "stretch" }}>
-            <div className={styles.inlineForm} style={{ justifyContent: "space-between" }}>
-              <div className={styles.hint}>
-                <b style={{ color: "var(--cream)" }}>{course.name}</b>
-              </div>
-              <form action={deleteCourse}>
-                <input type="hidden" name="courseId" value={course.id} />
-                <ConfirmDeleteButton
-                  className={styles.btnDanger}
-                  confirmMessage={courseDeleteWarning(course.id, course.name)}
-                >
-                  Delete course
-                </ConfirmDeleteButton>
-              </form>
-            </div>
-            {courseTees
-              .filter((t) => t.course_id === course.id)
-              .map((tee) => (
-                <CourseTeeForm key={tee.id} courseId={course.id} tee={tee} />
-              ))}
-            <CourseTeeForm courseId={course.id} tee={null} />
-          </div>
-        ))}
-        <form action={createCourse} className={styles.inlineForm}>
-          <input className={styles.input} name="name" placeholder="New course name" />
-          <button className={styles.btn} type="submit">
-            Create course
-          </button>
-        </form>
-      </section>
-
-      {/* ---------------- Corrections (Brief 20: round -> match -> hole drill-down) ---------------- */}
-      <section className={styles.section}>
-        <div className={styles.sectionTitle}>Corrections</div>
-        <div className={styles.hint}>Round:</div>
-        <RoundPicker rounds={rounds} courses={courses} selected={selectedRoundId} />
-        {!selectedRoundId && <div className={styles.hint}>No rounds yet.</div>}
-
-        {selectedRoundId && roundMatches.length === 0 && (
-          <div className={styles.hint}>No matchups set for this round yet.</div>
-        )}
-
-        {selectedRoundId && roundMatches.length > 0 && (
-          <>
-            <div className={styles.hint}>Match:</div>
-            <div className={styles.inlineForm}>
-              {roundMatches.map((m) => (
-                <a
-                  key={m.id}
-                  href={`/admin?round=${selectedRoundId}&cmatch=${m.id}`}
-                  className={m.id === selectedMatchId ? styles.btn : styles.btnGhost}
-                >
-                  {teamName(teams, m.team_a_id)} v {teamName(teams, m.team_b_id)} — Slot {m.slot}
-                </a>
-              ))}
-            </div>
-          </>
-        )}
-
-        {selectedMatch && (
-          <>
-            <div className={styles.holeNav}>
-              {selectedHole > 1 ? (
-                <a
-                  className={styles.navbtn}
-                  href={`/admin?round=${selectedRoundId}&cmatch=${selectedMatchId}&chole=${selectedHole - 1}`}
-                >
-                  ← Hole {selectedHole - 1}
-                </a>
-              ) : (
-                <span className={`${styles.navbtn} ${styles.navbtnDisabled}`}>← Hole {selectedHole - 1}</span>
-              )}
-              <div className={styles.holeBignum}>{selectedHole}</div>
-              {selectedHole < 18 ? (
-                <a
-                  className={styles.navbtn}
-                  href={`/admin?round=${selectedRoundId}&cmatch=${selectedMatchId}&chole=${selectedHole + 1}`}
-                >
-                  Hole {selectedHole + 1} →
-                </a>
-              ) : (
-                <span className={`${styles.navbtn} ${styles.navbtnDisabled}`}>Hole {selectedHole + 1} →</span>
-              )}
-            </div>
-
-            {matchPlayerIds(selectedMatch).length === 0 && (
-              <div className={styles.hint}>No players resolved for this match yet.</div>
-            )}
-
-            {matchPlayerIds(selectedMatch).map((playerId) => {
-              const row = holeScores.find((r) => r.player_id === playerId && r.hole === selectedHole);
-              if (!row) {
-                return (
-                  <div key={playerId} className={styles.row}>
-                    <span>{playerName(playerId)}</span>
-                    <span className={styles.hint}>not yet posted</span>
-                  </div>
-                );
-              }
-              return (
-                <CorrectionRow
-                  key={row.id}
-                  row={row}
-                  label={playerName(row.player_id)}
-                  roundId={selectedRoundId!}
-                  matchId={selectedMatchId}
-                  hole={selectedHole}
-                />
-              );
-            })}
-          </>
-        )}
-
-        {unmatchedHoleScores.length > 0 && (
-          <>
-            <div className={styles.hint}>
-              Other scores this round not tied to a current matchup (e.g. a reassigned or removed
-              pairing) — still correctable here:
-            </div>
-            {unmatchedHoleScores.map((row) => (
-              <CorrectionRow
-                key={row.id}
-                row={row}
-                label={`${playerName(row.player_id)} · hole ${row.hole}`}
-                roundId={selectedRoundId!}
-                hole={row.hole}
-              />
-            ))}
-          </>
-        )}
       </section>
 
       {/* ---------------- Challenge Ledger ---------------- */}
@@ -1040,63 +762,6 @@ export default async function AdminPage({
             </div>
           </div>
         ))}
-      </section>
-
-      {/* ---------------- Reverse mulligans (Brief 9 Part E) ---------------- */}
-      <section className={styles.section}>
-        <div className={styles.sectionTitle}>Reverse mulligans</div>
-        {reverseMulligans.length === 0 && (
-          <div className={styles.hint}>None called yet.</div>
-        )}
-        {reverseMulligans.map((rm) => {
-          const round = rounds.find((r) => r.id === rm.round_id);
-          return (
-            <div key={rm.id} className={styles.row}>
-              <span className={styles.hint}>
-                {teamName(teams, rm.team_id)} on {playerName(rm.victim_player_id)} · hole{" "}
-                {rm.hole} · {round ? roundLabel(round) : "?"}
-                {rm.original_holed_score !== null &&
-                  ` · real score ${rm.original_holed_score} stands`}
-              </span>
-              <form action={removeReverseMulligan}>
-                <input type="hidden" name="id" value={rm.id} />
-                <ConfirmDeleteButton
-                  className={styles.btnDanger}
-                  confirmMessage="Remove this reverse mulligan? The affected hole reverts to its real score for match play too. This cannot be undone."
-                >
-                  Remove
-                </ConfirmDeleteButton>
-              </form>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* ---------------- Skins entries (Brief 9 Part G override) ---------------- */}
-      <section className={styles.section}>
-        <div className={styles.sectionTitle}>Skins entries</div>
-        {skinsEntries.length === 0 && (
-          <div className={styles.hint}>No one opted in yet.</div>
-        )}
-        {skinsEntries.map((entry) => {
-          const round = rounds.find((r) => r.id === entry.round_id);
-          return (
-            <div key={entry.id} className={styles.row}>
-              <span className={styles.hint}>
-                {playerName(entry.player_id)} · {round ? roundLabel(round) : "?"}
-              </span>
-              <form action={removeSkinsEntry}>
-                <input type="hidden" name="id" value={entry.id} />
-                <ConfirmDeleteButton
-                  className={styles.btnDanger}
-                  confirmMessage={`Remove ${playerName(entry.player_id)}'s skins opt-in for this round? This cannot be undone.`}
-                >
-                  Remove
-                </ConfirmDeleteButton>
-              </form>
-            </div>
-          );
-        })}
       </section>
 
       {/* ---------------- Schedule ---------------- */}
@@ -1223,103 +888,50 @@ function courseName(courses: Course[], courseId: string) {
   return courses.find((c) => c.id === courseId)?.name ?? "?";
 }
 
-function teamName(teams: Team[], teamId: string) {
-  return teams.find((t) => t.id === teamId)?.name ?? "?";
+function totalYards(tee: CourseTee): string {
+  return tee.yardage_by_hole ? tee.yardage_by_hole.reduce((s, n) => s + n, 0).toLocaleString("en-US") : "—";
 }
 
-function duoSlotPlayerIds(sub: DuoSubmissionRow | undefined, slot: string): string[] {
-  if (!sub) return [];
-  const [p1, p2] =
-    slot === "A"
-      ? [sub.duo_a_player_1, sub.duo_a_player_2]
-      : [sub.duo_b_player_1, sub.duo_b_player_2];
-  return [p1, p2].filter((id): id is string => id !== null);
+/** "Round 1 — Sat, Mar 27". The date column is a plain calendar date, so format it in UTC. */
+function roundLabel(round: Round): string {
+  const date = new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(`${round.date}T12:00:00Z`));
+  return `${round.round_number ? `Round ${round.round_number}` : "Round"} — ${date}`;
 }
 
-function formatName(format: string) {
-  return format === "shamble" ? "Shamble" : format === "four_ball" ? "Four-ball" : format;
-}
-
-/**
- * One hole_scores row's correction form — same fields as before Brief 20 (strokes, RM match
- * strokes, breakfast ball, mulligan). roundId/matchId/hole ride along as hidden fields purely so
- * `correctHoleScore` can redirect back to the same drill-down spot instead of resetting to
- * round 1 after every save.
- */
-function CorrectionRow({
-  row,
-  label,
-  roundId,
-  matchId,
-  hole,
-}: {
-  row: HoleScoreRow;
-  label: string;
-  roundId: string;
-  matchId?: string;
-  hole: number;
-}) {
+/** Per-hole readout (par / yards / stroke index / Max) so Chris can spot-check a tee against the card. */
+function TeeHoleTable({ tee }: { tee: CourseTee }) {
+  if (!tee.par_by_hole) return <div className={styles.hint}>No per-hole pars on file for this tee.</div>;
+  const max = maxScoreByHole(tee.par_by_hole);
+  const holes = Array.from({ length: 18 }, (_, i) => i);
   return (
-    <form action={correctHoleScore} className={styles.row}>
-      <input type="hidden" name="id" value={row.id} />
-      <input type="hidden" name="roundId" value={roundId} />
-      {matchId && <input type="hidden" name="matchId" value={matchId} />}
-      <input type="hidden" name="hole" value={hole} />
-      <span>{label}</span>
-      <span className={styles.inlineForm}>
-        <input
-          className={styles.input}
-          type="number"
-          name="strokes"
-          defaultValue={row.strokes}
-          title="Real strokes"
-        />
-        <input
-          className={styles.input}
-          type="number"
-          name="matchStrokes"
-          defaultValue={row.match_strokes ?? ""}
-          placeholder="RM match #"
-          title="Match-only strokes (reverse mulligan)"
-        />
-        <label className={styles.checkboxLabel}>
-          <input type="checkbox" name="breakfastBall" defaultChecked={row.breakfast_ball} /> BB
-        </label>
-        <label className={styles.checkboxLabel}>
-          <input type="checkbox" name="mulligan" defaultChecked={row.mulligan} /> Mull
-        </label>
-        <label className={styles.checkboxLabel}>
-          <input type="checkbox" name="mercyCalled" defaultChecked={row.mercy_called} /> Mercy
-        </label>
-        <button className={styles.btn} type="submit">
-          Save
-        </button>
-      </span>
-    </form>
-  );
-}
-
-function RoundPicker({
-  rounds,
-  courses,
-  selected,
-}: {
-  rounds: Round[];
-  courses: Course[];
-  selected: string | undefined;
-}) {
-  return (
-    <div className={styles.inlineForm}>
-      {rounds.map((r) => (
-        <a
-          key={r.id}
-          href={`/admin?round=${r.id}`}
-          className={r.id === selected ? styles.btn : styles.btnGhost}
-        >
-          {courseName(courses, r.course_id)} — {formatName(r.format)}
-          <span className={styles.hint}> · {r.date}</span>
-        </a>
-      ))}
+    <div style={{ overflowX: "auto" }}>
+      <table className={styles.holeTable}>
+        <thead>
+          <tr>
+            <th>Hole</th>
+            <th>Par</th>
+            <th>Yds</th>
+            <th>SI</th>
+            <th>Max</th>
+          </tr>
+        </thead>
+        <tbody>
+          {holes.map((i) => (
+            <tr key={i}>
+              <td>{i + 1}</td>
+              <td>{tee.par_by_hole![i]}</td>
+              <td>{tee.yardage_by_hole?.[i] ?? "—"}</td>
+              <td>{tee.stroke_index[i]}</td>
+              <td>{max[i]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

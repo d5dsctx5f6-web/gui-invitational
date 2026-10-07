@@ -76,6 +76,7 @@ One tap per hole: whose tee shot the duo played. Eighteen taps a round, nothing 
 
 - **Shortened event:** if Sunday can't be completed (departures, weather), the cup goes to the standings after the last fully completed round. Pre-decided — no bar-side rulings.
 - **A tied cup goes to a chip-off.** Points, then total holes won across the trip, and if it's still dead even — two captains, one wedge each, on the practice green. Commissioner records the result. No co-champions.
+- **Paper scorecards.** Every foursome carries a printed card and marks it each hole. The app is canonical for live scoring and standings. At the end of the round, both duos sign the card. If the signed card and the app disagree, the commissioner reconciles to the signed card through admin.
 - **Commissioner authority:** Chris resolves anything not covered here — score corrections, Challenge Ledger disputes, rule gaps. Rulings are final and entered through admin.
 
 ---

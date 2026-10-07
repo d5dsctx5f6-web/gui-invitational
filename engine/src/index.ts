@@ -15,3 +15,6 @@ export * from "./standings";
 export * from "./pairings";
 export * from "./shortenedEvent";
 export * from "./drivesUsed";
+export * from "./courseData";
+export * from "./teeTimes";
+export * from "./duoValidation";

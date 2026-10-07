@@ -5,11 +5,8 @@
 
 const LABELS: Record<string, [string, string]> = {
   teeSetups: ["tee setup", "tee setups"],
-  rounds: ["round", "rounds"],
-  matches: ["match", "matches"],
+  duos: ["duo", "duos"],
   holeScores: ["hole score", "hole scores"],
-  duoSubmissions: ["duo submission", "duo submissions"],
-  skinsEntries: ["skins entry", "skins entries"],
   reverseMulligans: ["reverse mulligan", "reverse mulligans"],
   teamMembers: ["team member", "team members"],
 };

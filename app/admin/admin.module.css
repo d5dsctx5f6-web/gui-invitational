@@ -273,3 +273,44 @@
 .navbtnDisabled {
   opacity: 0.35;
 }
+
+/* Brief 32: tee detail + hole table + badges */
+.teeDetails {
+  border: 1px solid var(--seam);
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teeDetails > summary {
+  font-size: var(--fs-label);
+  color: var(--cream);
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.holeTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-label);
+  color: var(--cream);
+}
+
+.holeTable th,
+.holeTable td {
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--seam);
+}
+
+.badgeWarn {
+  align-self: flex-start;
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--spruce);
+  background: var(--gold);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
